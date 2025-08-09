@@ -9,9 +9,10 @@ import outputs from "./amplify_outputs.json";
 import Profile from "./src/Profile";
 import Menu from "./src/Menu";
 import Map from "./src/Map";
-const Deals = () => <View style={styles.center}><Button title="Deals Placeholder" onPress={() => {}} /></View>;
 
 Amplify.configure(outputs);
+
+const Deals = () => <View style={styles.center}><Button title="Deals Placeholder" onPress={() => {}} /></View>;
 
 const Tab = createBottomTabNavigator();
 
@@ -19,10 +20,6 @@ const Tab = createBottomTabNavigator();
 const ProfileWithHeader = () => {
   const { signOut } = useAuthenticator();
   
-  React.useLayoutEffect(() => {
-    // This will be handled by the navigation options
-  }, []);
-
   return <Profile />;
 };
 

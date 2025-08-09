@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, Image, ScrollView, StyleSheet, Dimensions } from "react-native";
 import { useAuthenticator } from "@aws-amplify/ui-react-native";
-import { generateClient } from "aws-amplify/data";
-import type { Schema } from "../amplify/data/resource";
-
-const client = generateClient<Schema>();
+import { userService, UserProfile } from "./services/SimpleUserService";
 
 // Mock data for placeholder food items
 const mockFoodItems = [
@@ -132,14 +129,14 @@ const MenuItem = ({ item, userProfile }: { item: any; userProfile: any }) => {
 
 const Menu = () => {
   const { user } = useAuthenticator();
-  const [userProfile, setUserProfile] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
       if (!user) return;
       try {
-        const { data } = await client.models.Profile.get({ id: user.userId });
-        setUserProfile(data);
+        const profile = await userService.getUser(user.userId);
+        setUserProfile(profile);
       } catch (error) {
         console.log("Could not fetch profile for menu pricing");
       }
