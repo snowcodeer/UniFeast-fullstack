@@ -5,6 +5,7 @@ import { generateClient } from "aws-amplify/data";
 import type { Schema } from "../amplify/data/resource";
 import { useAuthenticator } from "@aws-amplify/ui-react-native";
 import { ProfileService } from "./services/ProfileService";
+import { userService } from "./services/SimpleUserService";
 
 const client = generateClient<Schema>();
 
@@ -147,7 +148,33 @@ const Profile = () => {
     if (!user) return;
     const fetchProfile = async () => {
       try {
-        const profileData = await ProfileService.getProfile(user.userId);
+        // Try to get from Amplify first, then fallback to external DynamoDB
+        let profileData = await ProfileService.getProfile(user.userId);
+        if (!profileData) {
+          // Try external table
+          const externalProfile = await userService.getUser(user.userId);
+          if (externalProfile) {
+            // Convert external profile to Amplify format for the UI
+            const convertedProfile = {
+              id: externalProfile.user_id,
+              user_name: externalProfile.user_name,
+              email: externalProfile.email,
+              dietary_preferences: externalProfile.dietary_preferences,
+              period_plan: externalProfile.period_plan,
+              milk_allergy: externalProfile.milk_allergy,
+              eggs_allergy: externalProfile.eggs_allergy,
+              peanuts_allergy: externalProfile.peanuts_allergy,
+              tree_nuts_allergy: externalProfile.tree_nuts_allergy,
+              shellfish_allergy: externalProfile.shellfish_allergy,
+              other_allergies: Array.isArray(externalProfile.other_allergies) 
+                ? externalProfile.other_allergies.join(',') 
+                : (externalProfile.other_allergies || ''),
+              session_data: externalProfile.session_data,
+            };
+            setProfile(convertedProfile as any);
+            return;
+          }
+        }
         if (profileData) {
           setProfile(profileData);
         }
@@ -166,9 +193,12 @@ const Profile = () => {
       acc[a.key] = !!(profile as any)[a.key];
       return acc;
     }, {} as Record<string, boolean>);
-    // Handle extra allergens from other_allergies string
+    // Handle extra allergens from other_allergies array
     const extraAllergens = getExtraAllergens().reduce((acc: Record<string, boolean>, a) => {
-      acc[a.key] = profile.other_allergies?.includes(a.label) || false;
+      const otherAllergiesList = Array.isArray(profile.other_allergies) 
+        ? profile.other_allergies 
+        : (profile.other_allergies ? [profile.other_allergies] : []);
+      acc[a.key] = otherAllergiesList.includes(a.label) || false;
       return acc;
     }, {} as Record<string, boolean>);
     return {
@@ -189,14 +219,12 @@ const Profile = () => {
         .filter((allergen: any) => form[allergen.key])
         .map((allergen: any) => allergen.label)
         .join(",");
-      const created = await ProfileService.createProfile(
-        user.userId,
-        user.signInDetails?.loginId ?? ""
-      );
-      // Update the created profile with the form data
-      const updated = await ProfileService.updateProfile({
-        id: user.userId,
+        
+      // Create in external DynamoDB table
+      const created = await userService.createUser(user.userId, {
+        email: user.signInDetails?.loginId ?? "",
         user_name: form.user_name,
+        user_identity: 'student',
         dietary_preferences: form.dietary_preferences.join(","),
         period_plan: form.period_plan,
         milk_allergy: form.milk_allergy,
@@ -204,9 +232,29 @@ const Profile = () => {
         peanuts_allergy: form.peanuts_allergy,
         tree_nuts_allergy: form.tree_nuts_allergy,
         shellfish_allergy: form.shellfish_allergy,
-        other_allergies,
+        other_allergies: other_allergies ? other_allergies.split(',').map(s => s.trim()).filter(Boolean) : [],
       });
-      setProfile(updated);
+      
+      if (created) {
+        // Convert to Amplify format for UI
+        const convertedProfile = {
+          id: created.user_id,
+          user_name: created.user_name,
+          email: created.email,
+          dietary_preferences: created.dietary_preferences,
+          period_plan: created.period_plan,
+          milk_allergy: created.milk_allergy,
+          eggs_allergy: created.eggs_allergy,
+          peanuts_allergy: created.peanuts_allergy,
+          tree_nuts_allergy: created.tree_nuts_allergy,
+          shellfish_allergy: created.shellfish_allergy,
+          other_allergies: Array.isArray(created.other_allergies) 
+            ? created.other_allergies.join(',') 
+            : (created.other_allergies || ''),
+          session_data: created.session_data,
+        };
+        setProfile(convertedProfile as any);
+      }
     } catch (err: any) {
       setError(err.message || "Unknown error");
     }
@@ -219,8 +267,9 @@ const Profile = () => {
         .filter((allergen: any) => form[allergen.key])
         .map((allergen: any) => allergen.label)
         .join(",");
-      const updated = await ProfileService.updateProfile({
-        id: user.userId,
+        
+      // Update in external DynamoDB table
+      const updated = await userService.updateUser(user.userId, {
         user_name: form.user_name,
         dietary_preferences: form.dietary_preferences.join(","),
         period_plan: form.period_plan,
@@ -229,9 +278,29 @@ const Profile = () => {
         peanuts_allergy: form.peanuts_allergy,
         tree_nuts_allergy: form.tree_nuts_allergy,
         shellfish_allergy: form.shellfish_allergy,
-        other_allergies,
+        other_allergies: other_allergies ? other_allergies.split(',').map(s => s.trim()).filter(Boolean) : [],
       });
-      setProfile(updated);
+      
+      if (updated) {
+        // Convert to Amplify format for UI
+        const convertedProfile = {
+          id: updated.user_id,
+          user_name: updated.user_name,
+          email: updated.email,
+          dietary_preferences: updated.dietary_preferences,
+          period_plan: updated.period_plan,
+          milk_allergy: updated.milk_allergy,
+          eggs_allergy: updated.eggs_allergy,
+          peanuts_allergy: updated.peanuts_allergy,
+          tree_nuts_allergy: updated.tree_nuts_allergy,
+          shellfish_allergy: updated.shellfish_allergy,
+          other_allergies: Array.isArray(updated.other_allergies) 
+            ? updated.other_allergies.join(',') 
+            : (updated.other_allergies || ''),
+          session_data: updated.session_data,
+        };
+        setProfile(convertedProfile as any);
+      }
       setEditing(false);
     } catch (err: any) {
       setError(err.message || "Unknown error");
@@ -280,7 +349,7 @@ const Profile = () => {
       <Text>
         {[
           ...getMainAllergens().filter((a: any) => (profile as any)[a.key]).map((a: any) => a.label),
-          ...(profile.other_allergies ? profile.other_allergies.split(",").filter(Boolean) : [])
+          ...(Array.isArray(profile.other_allergies) ? profile.other_allergies : [])
         ].join(", ") || "None"}
       </Text>
       <Button title="Edit Profile" onPress={() => setEditing(true)} />

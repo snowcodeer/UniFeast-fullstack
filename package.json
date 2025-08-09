@@ -11,6 +11,10 @@
   "dependencies": {
     "@aws-amplify/react-native": "^1.1.10",
     "@aws-amplify/ui-react-native": "^2.5.3",
+    "@aws-sdk/client-cognito-identity": "^3.863.0",
+    "@aws-sdk/client-dynamodb": "^3.863.0",
+    "@aws-sdk/credential-providers": "^3.863.0",
+    "@aws-sdk/lib-dynamodb": "^3.863.0",
     "@react-native-async-storage/async-storage": "^2.1.2",
     "@react-native-community/netinfo": "^11.4.1",
     "@react-native-picker/picker": "^2.11.1",
@@ -35,6 +39,7 @@
     "@aws-amplify/backend": "^1.16.1",
     "@aws-amplify/backend-cli": "^1.8.0",
     "@babel/core": "^7.25.2",
+    "@babel/plugin-transform-class-static-block": "^7.27.1",
     "@types/react": "~19.0.10",
     "aws-cdk-lib": "^2.204.0",
     "constructs": "^10.4.2",
