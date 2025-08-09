@@ -7,7 +7,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 
 import outputs from "./amplify_outputs.json";
 import Profile from "./src/Profile";
-import Menu from "./src/Menu";
+import Home from "./src/Home";
 import Map from "./src/Map";
 
 Amplify.configure(outputs);
@@ -26,7 +26,7 @@ const ProfileWithHeader = () => {
 const TabScreens = () => (
   <SafeAreaView style={styles.container}>
     <Tab.Navigator>
-      <Tab.Screen name="Menu" component={Menu} />
+      <Tab.Screen name="Home" component={Home} />
       <Tab.Screen name="Map" component={Map} />
       <Tab.Screen name="Deals" component={Deals} />
       <Tab.Screen 
