@@ -310,10 +310,6 @@ const Profile = () => {
   // Show profile if it exists
   return (
     <ScrollView style={{ padding: 16 }}>
-      <View style={{ alignSelf: "flex-end", marginBottom: 16 }}>
-        <Button title="Sign Out" onPress={handleSignOut} color="#ff6b6b" />
-      </View>
-
       <Text style={{ fontSize: 20, fontWeight: "bold", marginBottom: 16 }}>
         Profile
       </Text>
