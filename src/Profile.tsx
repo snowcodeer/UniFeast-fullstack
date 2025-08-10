@@ -1,8 +1,21 @@
 // src/Profile.tsx
 import { useState, useEffect } from "react";
-import { View, Text, TextInput, Button, ScrollView, TouchableOpacity, Switch, Alert } from "react-native";
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  ScrollView, 
+  TouchableOpacity, 
+  Switch, 
+  Alert,
+  StyleSheet,
+  Platform,
+  Pressable,
+  Image,
+} from "react-native";
 import { useAuthenticator } from "@aws-amplify/ui-react-native";
 import { userService, UserProfile } from "./services/ProfileService";
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 const DIETARY_OPTIONS = [
   "Halal",
@@ -77,64 +90,107 @@ function ProfileForm({
   };
 
   return (
-    <ScrollView style={{ padding: 16 }}>
-      <Text style={{ fontSize: 18, fontWeight: "bold", marginBottom: 16 }}>
-        {submitLabel === "Create" ? "Create Profile" : "Edit Profile"}
-      </Text>
+    <ScrollView style={styles.container}>
+      <View style={styles.formHeader}>
+        <Text style={styles.formTitle}>
+          {submitLabel === "Create" ? "Create Profile" : "Edit Profile"}
+        </Text>
+      </View>
 
-      <Text style={{ marginBottom: 8 }}>Name:</Text>
-      <TextInput
-        style={{ borderWidth: 1, borderColor: "#ccc", padding: 8, marginBottom: 16 }}
-        value={form.user_name}
-        onChangeText={(text) => setForm(prev => ({ ...prev, user_name: text }))}
-        placeholder="Enter your name"
-      />
-
-      <Text style={{ marginBottom: 8 }}>Dietary Preferences:</Text>
-      {DIETARY_OPTIONS.map(option => (
-        <TouchableOpacity
-          key={option}
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            paddingVertical: 8,
-            paddingHorizontal: 12,
-            marginBottom: 4,
-            backgroundColor: form.dietary_preferences.includes(option) ? "#e3f2fd" : "#f5f5f5",
-            borderRadius: 4,
-          }}
-          onPress={() => toggleDietaryPreference(option)}
-        >
-          <Text style={{ flex: 1 }}>{option}</Text>
-          <Text>{form.dietary_preferences.includes(option) ? "✓" : ""}</Text>
-        </TouchableOpacity>
-      ))}
-
-      <Text style={{ marginTop: 16, marginBottom: 8 }}>Period Plan:</Text>
-      <TextInput
-        style={{ borderWidth: 1, borderColor: "#ccc", padding: 8, marginBottom: 16 }}
-        value={form.period_plan}
-        onChangeText={(text) => setForm(prev => ({ ...prev, period_plan: text }))}
-        placeholder="Enter period plan"
-      />
-
-      <Text style={{ marginTop: 16, marginBottom: 8, fontWeight: "bold" }}>Allergens:</Text>
-      {ALL_ALLERGENS.map(allergen => (
-        <View key={allergen.key} style={{ flexDirection: "row", alignItems: "center", marginBottom: 4 }}>
-          <Switch
-            value={!!form[allergen.key]}
-            onValueChange={() => toggleAllergen(allergen.key)}
-          />
-          <Text style={{ marginLeft: 8 }}>{allergen.label}</Text>
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <MaterialIcons name="person" size={24} color="#007AFF" />
+          <Text style={styles.sectionTitle}>Basic Information</Text>
         </View>
-      ))}
+        <View style={styles.sectionContent}>
+          <Text style={styles.inputLabel}>Name</Text>
+          <TextInput
+            style={styles.textInput}
+            value={form.user_name}
+            onChangeText={(text) => setForm(prev => ({ ...prev, user_name: text }))}
+            placeholder="Enter your name"
+            placeholderTextColor="#6e6e73"
+          />
 
-      <View style={{ marginTop: 20 }}>
-        <Button title={submitLabel} onPress={() => onSubmit(form)} />
-        {onCancel && (
-          <View style={{ marginTop: 8 }}>
-            <Button title="Cancel" onPress={onCancel} color="gray" />
+          <Text style={[styles.inputLabel, { marginTop: 16 }]}>Nutrition Plan</Text>
+          <TextInput
+            style={styles.textInput}
+            value={form.period_plan}
+            onChangeText={(text) => setForm(prev => ({ ...prev, period_plan: text }))}
+            placeholder="Enter nutrition plan"
+            placeholderTextColor="#6e6e73"
+          />
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <MaterialIcons name="restaurant" size={24} color="#007AFF" />
+          <Text style={styles.sectionTitle}>Dietary Preferences</Text>
+        </View>
+        <View style={styles.sectionContent}>
+          <View style={styles.preferencesContainer}>
+            {DIETARY_OPTIONS.map(option => (
+              <TouchableOpacity
+                key={option}
+                style={[
+                  styles.preferenceChip,
+                  form.dietary_preferences.includes(option) && styles.preferenceChipSelected
+                ]}
+                onPress={() => toggleDietaryPreference(option)}
+              >
+                <Text style={[
+                  styles.preferenceChipText,
+                  form.dietary_preferences.includes(option) && styles.preferenceChipTextSelected
+                ]}>
+                  {option}
+                </Text>
+                {form.dietary_preferences.includes(option) && (
+                  <MaterialIcons name="check" size={18} color="white" style={styles.checkIcon} />
+                )}
+              </TouchableOpacity>
+            ))}
           </View>
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <MaterialIcons name="warning" size={24} color="#007AFF" />
+          <Text style={styles.sectionTitle}>Allergens</Text>
+        </View>
+        <View style={styles.sectionContent}>
+          {ALL_ALLERGENS.map(allergen => (
+            <View key={allergen.key} style={styles.allergenRow}>
+              <Text style={styles.allergenLabel}>{allergen.label}</Text>
+              <Switch
+                value={!!form[allergen.key]}
+                onValueChange={() => toggleAllergen(allergen.key)}
+                trackColor={{ false: "#e0e0e0", true: "#007AFF" }}
+                ios_backgroundColor="#e0e0e0"
+              />
+            </View>
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity 
+          style={styles.editButton}
+          onPress={() => onSubmit(form)}
+        >
+          <MaterialIcons name="check" size={20} color="white" />
+          <Text style={styles.editButtonText}>{submitLabel}</Text>
+        </TouchableOpacity>
+
+        {onCancel && (
+          <TouchableOpacity 
+            style={styles.signOutButton}
+            onPress={onCancel}
+          >
+            <MaterialIcons name="close" size={20} color="#FF3B30" />
+            <Text style={styles.signOutButtonText}>Cancel</Text>
+          </TouchableOpacity>
         )}
       </View>
     </ScrollView>
@@ -204,7 +260,7 @@ const Profile = () => {
         email: user.signInDetails?.loginId ?? "",
         user_name: form.user_name,
         dietary_preferences: form.dietary_preferences,
-        period_plan: form.period_plan,
+        nutrition_plan: form.nutrition_plan,
         milk_allergy: form.milk_allergy,
         eggs_allergy: form.eggs_allergy,
         peanuts_allergy: form.peanuts_allergy,
@@ -236,7 +292,7 @@ const Profile = () => {
       const updateData = {
         user_name: form.user_name,
         dietary_preferences: form.dietary_preferences,
-        period_plan: form.period_plan,
+        nutrition_plan: form.nutrition_plan,
         milk_allergy: form.milk_allergy,
         eggs_allergy: form.eggs_allergy,
         peanuts_allergy: form.peanuts_allergy,
@@ -278,9 +334,13 @@ const Profile = () => {
 
   if (error) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <Text style={{ color: "red", marginBottom: 16 }}>Error: {error}</Text>
-        <Button title="Retry" onPress={fetchProfile} />
+      <View style={styles.errorContainer}>
+        <MaterialIcons name="error-outline" size={48} color="#FF3B30" />
+        <Text style={styles.errorText}>Error: {error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={fetchProfile}>
+          <MaterialIcons name="refresh" size={20} color="white" />
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -309,43 +369,333 @@ const Profile = () => {
 
   // Show profile if it exists
   return (
-    <ScrollView style={{ padding: 16 }}>
-      <Text style={{ fontSize: 20, fontWeight: "bold", marginBottom: 16 }}>
-        Profile
-      </Text>
+    <ScrollView style={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.avatarContainer}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>
+              {profile.user_name ? profile.user_name.charAt(0).toUpperCase() : "?"}
+            </Text>
+          </View>
+          <Text style={styles.userName}>{profile.user_name || "Anonymous"}</Text>
+          <Text style={styles.userEmail}>{profile.email || "No email"}</Text>
+        </View>
+      </View>
 
-      <Text style={{ marginBottom: 8 }}>
-        <Text style={{ fontWeight: "bold" }}>Email:</Text> {profile.email || "N/A"}
-      </Text>
-      
-      <Text style={{ marginBottom: 8 }}>
-        <Text style={{ fontWeight: "bold" }}>Name:</Text> {profile.user_name || "N/A"}
-      </Text>
-      
-      <Text style={{ marginBottom: 8 }}>
-        <Text style={{ fontWeight: "bold" }}>Dietary Preferences:</Text>{" "}
-        {Array.isArray(profile.dietary_preferences) && profile.dietary_preferences.length > 0
-          ? profile.dietary_preferences.join(", ")
-          : "None"}
-      </Text>
-      
-      <Text style={{ marginBottom: 8 }}>
-        <Text style={{ fontWeight: "bold" }}>Period Plan:</Text> {profile.period_plan || "N/A"}
-      </Text>
-      
-      <Text style={{ marginTop: 12, marginBottom: 8, fontWeight: "bold" }}>
-        Allergies:
-      </Text>
-      <Text style={{ marginBottom: 16 }}>
-        {[
-          ...getMainAllergens().filter((a: any) => (profile as any)[a.key]).map((a: any) => a.label),
-          ...(Array.isArray(profile.other_allergies) ? profile.other_allergies : [])
-        ].join(", ") || "None"}
-      </Text>
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <MaterialIcons name="restaurant" size={24} color="#007AFF" />
+          <Text style={styles.sectionTitle}>Dietary Preferences</Text>
+        </View>
+        <View style={styles.sectionContent}>
+          {Array.isArray(profile.dietary_preferences) && profile.dietary_preferences.length > 0 ? (
+            <View style={styles.tagContainer}>
+              {profile.dietary_preferences.map((pref) => (
+                <View key={pref} style={styles.tag}>
+                  <Text style={styles.tagText}>{pref}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.emptyText}>No dietary preferences set</Text>
+          )}
+        </View>
+      </View>
 
-      <Button title="Edit Profile" onPress={() => setEditing(true)} />
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <MaterialIcons name="warning" size={24} color="#007AFF" />
+          <Text style={styles.sectionTitle}>Allergies</Text>
+        </View>
+        <View style={styles.sectionContent}>
+          {[
+            ...getMainAllergens().filter((a: any) => (profile as any)[a.key]).map((a: any) => a.label),
+            ...(Array.isArray(profile.other_allergies) ? profile.other_allergies : [])
+          ].length > 0 ? (
+            <View style={styles.tagContainer}>
+              {[
+                ...getMainAllergens().filter((a: any) => (profile as any)[a.key]).map((a: any) => (
+                  <View key={a.key} style={[styles.tag, styles.allergyTag]}>
+                    <Text style={styles.tagText}>{a.label}</Text>
+                  </View>
+                )),
+                ...(Array.isArray(profile.other_allergies) ? profile.other_allergies.map((allergy) => (
+                  <View key={allergy} style={[styles.tag, styles.allergyTag]}>
+                    <Text style={styles.tagText}>{allergy}</Text>
+                  </View>
+                )) : [])
+              ]}
+            </View>
+          ) : (
+            <Text style={styles.emptyText}>No allergies specified</Text>
+          )}
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <MaterialIcons name="calendar-today" size={24} color="#007AFF" />
+          <Text style={styles.sectionTitle}>Nutrition Plan</Text>
+        </View>
+        <View style={styles.sectionContent}>
+          <Text style={styles.planText}>{profile.period_plan || "No plan selected"}</Text>
+        </View>
+      </View>
+
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity 
+          style={styles.editButton} 
+          onPress={() => setEditing(true)}
+        >
+          <MaterialIcons name="edit" size={20} color="white" />
+          <Text style={styles.editButtonText}>Edit Profile</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.signOutButton} 
+          onPress={handleSignOut}
+        >
+          <MaterialIcons name="logout" size={20} color="#FF3B30" />
+          <Text style={styles.signOutButtonText}>Sign Out</Text>
+        </TouchableOpacity>
+      </View>
     </ScrollView>
   );
 };
+
+const styles = StyleSheet.create({
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 16,
+    backgroundColor: "white",
+  },
+  errorText: {
+    color: "#FF3B30",
+    fontSize: 16,
+    marginVertical: 16,
+    textAlign: "center",
+  },
+  retryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#007AFF",
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    gap: 8,
+  },
+  retryButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  formHeader: {
+    backgroundColor: "white",
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
+    marginBottom: 16,
+  },
+  formTitle: {
+    fontSize: 24,
+    fontWeight: "600",
+    color: "#1c1c1e",
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#1c1c1e",
+    marginBottom: 8,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: "#1c1c1e",
+    backgroundColor: "white",
+  },
+  preferencesContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  preferenceChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f5f5f5",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+  },
+  preferenceChipSelected: {
+    backgroundColor: "#007AFF",
+    borderColor: "#007AFF",
+  },
+  preferenceChipText: {
+    fontSize: 14,
+    color: "#1c1c1e",
+    marginRight: 4,
+  },
+  preferenceChipTextSelected: {
+    color: "white",
+  },
+  checkIcon: {
+    marginLeft: 4,
+  },
+  allergenRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
+  },
+  allergenLabel: {
+    fontSize: 16,
+    color: "#1c1c1e",
+  },
+  container: {
+    flex: 1,
+    backgroundColor: "#f5f5f5",
+  },
+  header: {
+    backgroundColor: "white",
+    paddingTop: 32,
+    paddingBottom: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
+    marginBottom: 16,
+  },
+  avatarContainer: {
+    alignItems: "center",
+  },
+  avatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#007AFF",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  avatarText: {
+    fontSize: 32,
+    color: "white",
+    fontWeight: "600",
+  },
+  userName: {
+    fontSize: 24,
+    fontWeight: "600",
+    color: "#1c1c1e",
+    marginBottom: 4,
+  },
+  userEmail: {
+    fontSize: 16,
+    color: "#6e6e73",
+  },
+  section: {
+    backgroundColor: "white",
+    borderRadius: 12,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#1c1c1e",
+    marginLeft: 8,
+  },
+  sectionContent: {
+    marginTop: 8,
+  },
+  tagContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  tag: {
+    backgroundColor: "#e3f2fd",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  allergyTag: {
+    backgroundColor: "#ffebee",
+  },
+  tagText: {
+    color: "#1c1c1e",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  emptyText: {
+    color: "#6e6e73",
+    fontStyle: "italic",
+  },
+  planText: {
+    fontSize: 16,
+    color: "#1c1c1e",
+  },
+  buttonContainer: {
+    padding: 16,
+    gap: 12,
+  },
+  editButton: {
+    backgroundColor: "#007AFF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    gap: 8,
+  },
+  editButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  signOutButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    backgroundColor: "white",
+    borderWidth: 1,
+    borderColor: "#FF3B30",
+    gap: 8,
+  },
+  signOutButtonText: {
+    color: "#FF3B30",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+});
 
 export default Profile;

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, TextInput } from "react-native";
+import React, { useState, useEffect, useRef } from "react";
+import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, TextInput, Animated, Easing } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { useAuthenticator } from "@aws-amplify/ui-react-native";
 import { userService, UserProfile } from "./services/ProfileService";
@@ -44,6 +44,30 @@ const Home = () => {
   const [selectedCategories, setSelectedCategories] = useState<Set<Outlet["category"]>>(new Set());
   const [nowOpenOnly, setNowOpenOnly] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
+  const searchAnim = useRef(new Animated.Value(0)).current;
+
+  const openSearch = () => {
+    setIsSearchOpen(true);
+    searchAnim.setValue(0);
+    Animated.timing(searchAnim, {
+      toValue: 1,
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const closeSearch = () => {
+    Animated.timing(searchAnim, {
+      toValue: 0,
+      duration: 180,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) setIsSearchOpen(false);
+    });
+  };
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -206,33 +230,56 @@ const Home = () => {
         </Text>
       )}
       <View style={styles.filtersContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search by name, description, tags"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholderTextColor="#999"
-        />
-        <View style={styles.filterChipsRow}>
-          {(["Cafe", "Restaurant", "Bar"] as Outlet["category"][]).map(cat => (
-            <TouchableOpacity
-              key={cat}
-              onPress={() => toggleCategory(cat)}
-              style={[styles.chip, selectedCategories.has(cat) && styles.chipSelected]}
-            >
-              <Text style={[styles.chipText, selectedCategories.has(cat) && styles.chipTextSelected]}>{formatCategoryLabel(cat)}</Text>
+        {isSearchOpen ? (
+          <Animated.View style={[
+            styles.searchRow,
+            { opacity: searchAnim, transform: [{ translateX: searchAnim.interpolate({ inputRange: [0, 1], outputRange: [-16, 0] }) }] },
+          ]}>
+            <TouchableOpacity onPress={closeSearch} style={styles.iconButton}>
+              <Icon name="arrow-back" size={20} color="#333" />
             </TouchableOpacity>
-          ))}
-          <TouchableOpacity
-            onPress={() => setNowOpenOnly(v => !v)}
-            style={[styles.chip, nowOpenOnly && styles.chipSelected]}
-          >
-            <Text style={[styles.chipText, nowOpenOnly && styles.chipTextSelected]}>Now open</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={resetFilters} style={[styles.chip, styles.resetChip]}>
-            <Text style={[styles.chipText, styles.resetChipText]}>Reset</Text>
-          </TouchableOpacity>
-        </View>
+            <TextInput
+              style={[styles.searchInput, { flex: 1 }]}
+              placeholder="Search by name, description, tags"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholderTextColor="#999"
+              autoFocus
+              returnKeyType="search"
+            />
+            {searchQuery ? (
+              <TouchableOpacity onPress={() => setSearchQuery("")} style={styles.iconButton}>
+                <Icon name="close" size={18} color="#666" />
+              </TouchableOpacity>
+            ) : null}
+          </Animated.View>
+        ) : (
+          <View style={styles.filtersRow}>
+            <TouchableOpacity onPress={openSearch} style={styles.iconButton}>
+              <Icon name="search" size={20} color="#333" />
+            </TouchableOpacity>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterChipsRowInline}>
+              {(["Cafe", "Restaurant", "Bar"] as Outlet["category"][]).map(cat => (
+                <TouchableOpacity
+                  key={cat}
+                  onPress={() => toggleCategory(cat)}
+                  style={[styles.chip, selectedCategories.has(cat) && styles.chipSelected]}
+                >
+                  <Text style={[styles.chipText, selectedCategories.has(cat) && styles.chipTextSelected]}>{formatCategoryLabel(cat)}</Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity
+                onPress={() => setNowOpenOnly(v => !v)}
+                style={[styles.chip, nowOpenOnly && styles.chipSelected]}
+              >
+                <Text style={[styles.chipText, nowOpenOnly && styles.chipTextSelected]}>Open</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={resetFilters} style={styles.iconButton}>
+                <Icon name="refresh" size={18} color="#666" />
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        )}
       </View>
       
       {filteredOutlets.map((outlet) => (
@@ -280,21 +327,44 @@ const styles = StyleSheet.create({
   filtersContainer: {
     backgroundColor: "white",
     borderRadius: 12,
-    padding: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     marginBottom: 16,
+    height: 52,
+  },
+  filtersRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  searchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  iconButton: {
+    padding: 6,
+    borderRadius: 16,
   },
   searchInput: {
     borderWidth: 1,
     borderColor: "#e0e0e0",
     borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 8,
+    paddingVertical: 6,
+    marginBottom: 0,
+    height: 36,
     color: "#333",
   },
   filterChipsRow: {
     flexDirection: "row",
     flexWrap: "wrap",
+    gap: 8,
+  },
+  filterChipsRowInline: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
   },
   chip: {

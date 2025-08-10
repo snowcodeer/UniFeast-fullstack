@@ -8,7 +8,7 @@ export interface UserProfile {
   user_name?: string;
   email?: string;
   user_identity?: string;
-  dietary_preferences?: string;
+  dietary_preferences?: string[];
   period_plan?: string;
   milk_allergy?: boolean;
   eggs_allergy?: boolean;
@@ -81,7 +81,7 @@ class SimpleUserService {
         user_name: '',
         email: '',
         user_identity: 'student',
-        dietary_preferences: '',
+        dietary_preferences: [],
         period_plan: '',
         milk_allergy: false,
         eggs_allergy: false,
