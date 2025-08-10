@@ -70,8 +70,8 @@ export const southKensingtonOutlets: Outlet[] = [
     ],
   },
   {
-    id: "eastside-bar-restaurant",
-    name: "Eastside Bar and Restaurant",
+    id: "eastside-bar",
+    name: "Eastside Bar",
     campus: "South Kensington",
     category: "Restaurant",
     description:
@@ -101,18 +101,15 @@ export const southKensingtonOutlets: Outlet[] = [
     ],
   },
   {
-    id: "h-bar",
-    name: "h-bar",
+    id: "kokoro",
+    name: "Kokoro",
     campus: "South Kensington",
-    category: "Bar",
+    category: "Restaurant",
     description:
-      "Featuring a café, evening supper menu and a bar; a cosy venue for every occasion.",
-    buildingOrArea: "h-bar",
-    url: "https://www-d7.imperialcollegeunion.org/food-drink/h-bar",
-    tags: ["bar", "supper", "cafe"],
-    openingHours: [
-      { days: "Mon–Sun", time: "Available for private hire" },
-    ],
+      "Japanese kitchen (Kokoro). Temporarily operating in Queen's Tower Rooms.",
+    buildingOrArea: "Queen's Tower Rooms",
+    url: "https://www.imperial.ac.uk/food-and-drink/opening-hours/",
+    tags: ["Japanese", "curry", "sushi"],
   },
   {
     id: "jcr-deli",
@@ -225,18 +222,6 @@ export const southKensingtonOutlets: Outlet[] = [
     ],
   },
   {
-    id: "lms-cafe",
-    name: "LMS Café",
-    campus: "South Kensington",
-    category: "Cafe",
-    description: "Café offering hot and cold drinks and snacks.",
-    buildingOrArea: "South Kensington",
-    url: "https://www.imperial.ac.uk/food-and-drink/opening-hours/",
-    openingHours: [
-      { days: "Mon–Fri", time: "08:00–17:00" },
-    ],
-  },
-  {
     id: "lumen-cafe",
     name: "Lumen Café",
     campus: "South Kensington",
@@ -261,8 +246,8 @@ export const southKensingtonOutlets: Outlet[] = [
     ],
   },
   {
-    id: "neo-pizza-pasta",
-    name: "Neo Pizza & Pasta",
+    id: "pizza-pi",
+    name: "Pizza Pi",
     campus: "South Kensington",
     category: "Restaurant",
     description: "Pizza and pasta made to order.",
@@ -345,19 +330,7 @@ export const southKensingtonOutlets: Outlet[] = [
       { days: "Mon–Fri", time: "11:45–14:30" },
     ],
   },
-  {
-    id: "eastside-bar",
-    name: "Eastside Bar",
-    campus: "South Kensington",
-    category: "Bar",
-    description: "Bar service at Eastside.",
-    buildingOrArea: "Eastside (Linstead Hall)",
-    url: "https://www.imperial.ac.uk/food-and-drink/opening-hours/",
-    openingHours: [
-      { days: "Mon–Wed", time: "11:00–19:00" },
-      { days: "Thu–Fri", time: "11:00–21:00" },
-    ],
-  },
+  
 ];
 
 export default southKensingtonOutlets;

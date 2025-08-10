@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, TextInput, Animated, Easing } from "react-native";
+import { Image as ExpoImage } from "expo-image";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { useAuthenticator } from "@aws-amplify/ui-react-native";
 import { userService, UserProfile } from "./services/ProfileService";
 import { localOutletService } from "./services/LocalOutletService";
 import type { Outlet } from "./data/outletsSouthKensington";
+import outletBanners from "./assets/outletBanners";
+import OutletView from "./components/OutletView";
 
 // Use local outlets dataset
 const outlets = localOutletService.getSouthKensingtonOutlets();
@@ -14,9 +17,23 @@ const formatCategoryLabel = (category: Outlet["category"]): string => (category 
 const OutletCard = ({ outlet, isOpen, onPress }: { outlet: Outlet; isOpen: boolean; onPress: () => void }) => {
   return (
     <TouchableOpacity style={styles.card} onPress={onPress}>
+      <View style={styles.cardBannerContainer}>
+        {outletBanners[outlet.id] ? (
+          <ExpoImage
+            source={outletBanners[outlet.id]}
+            style={styles.cardBannerImage}
+            contentFit="cover"
+            contentPosition={(outlet.id === 'kimiko' || outlet.id === 'huxley-cafe') ? 'right center' : 'left center'}
+            transition={100}
+          />
+        ) : (
+          <View style={styles.cardBannerPlaceholder}>
+            <Text style={styles.cardBannerPlaceholderText}>{outlet.name}</Text>
+          </View>
+        )}
+      </View>
       <View style={styles.cardContent}>
-        <Text style={styles.restaurantName}>{outlet.name}</Text>
-        <Text style={styles.description}>{outlet.description}</Text>
+        <Text style={styles.restaurantName} numberOfLines={2}>{outlet.name}</Text>
         
         <View style={styles.infoRow}>
           <View style={styles.locationRow}>
@@ -41,7 +58,7 @@ const Home = () => {
   const { user } = useAuthenticator();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [selectedOutlet, setSelectedOutlet] = useState<Outlet | null>(null);
-  const [selectedCategories, setSelectedCategories] = useState<Set<Outlet["category"]>>(new Set());
+  const [selectedCategory, setSelectedCategory] = useState<Outlet["category"] | "All" | null>("All");
   const [nowOpenOnly, setNowOpenOnly] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
@@ -87,20 +104,12 @@ const Home = () => {
     console.log("Open outlet:", outlet.name);
   };
 
-  const toggleCategory = (category: Outlet["category"]) => {
-    setSelectedCategories(prev => {
-      const next = new Set(prev);
-      if (next.has(category)) {
-        next.delete(category);
-      } else {
-        next.add(category);
-      }
-      return next;
-    });
+  const selectCategory = (category: Outlet["category"] | "All") => {
+    setSelectedCategory(category);
   };
 
   const resetFilters = () => {
-    setSelectedCategories(new Set());
+    setSelectedCategory("All");
     setNowOpenOnly(false);
     setSearchQuery("");
   };
@@ -166,7 +175,7 @@ const Home = () => {
   };
 
   const filteredOutlets = outlets.filter(o => {
-    if (selectedCategories.size > 0 && !selectedCategories.has(o.category)) return false;
+    if (selectedCategory && selectedCategory !== "All" && o.category !== selectedCategory) return false;
     if (nowOpenOnly && !isNowOpen(o)) return false;
     if (!matchesQuery(o)) return false;
     return true;
@@ -174,61 +183,13 @@ const Home = () => {
 
   // If an outlet is selected, show its details
   if (selectedOutlet) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => setSelectedOutlet(null)}
-          >
-            <Text style={styles.backButtonText}>← Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>{selectedOutlet.name}</Text>
-        </View>
-        
-        <ScrollView style={styles.menuContainer}>
-          <View style={styles.restaurantInfo}>
-            <Text style={styles.restaurantHeaderName}>{selectedOutlet.name}</Text>
-            <Text style={styles.restaurantHeaderDescription}>{selectedOutlet.description}</Text>
-            <View style={styles.restaurantHeaderDetails}>
-              <Text style={styles.location}>{selectedOutlet.buildingOrArea || selectedOutlet.campus}</Text>
-              <Text style={styles.tag}>{selectedOutlet.category}</Text>
-            </View>
-          </View>
-
-          {selectedOutlet.openingHours && selectedOutlet.openingHours.length > 0 && (
-            <View style={styles.menuItem}>
-              <Text style={styles.menuSectionTitle}>Opening Hours</Text>
-              {selectedOutlet.openingHours.map((oh, idx) => (
-                <View key={`${oh.days}-${idx}`} style={{ marginBottom: 6 }}>
-                  <Text style={{ fontWeight: "600", color: "#333" }}>{oh.days}</Text>
-                  <Text style={{ color: "#555" }}>{oh.time}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-
-          <View style={styles.menuItem}>
-            <Text style={styles.menuSectionTitle}>More info</Text>
-            {selectedOutlet.details ? (
-              <Text style={styles.menuItemDescription}>{selectedOutlet.details}</Text>
-            ) : null}
-            <Text style={[styles.menuItemDescription, { color: "#007AFF" }]}>Source</Text>
-            <Text style={{ color: "#007AFF" }}>{selectedOutlet.url}</Text>
-          </View>
-        </ScrollView>
-      </View>
-    );
+    return <OutletView outlet={selectedOutlet} userProfile={userProfile} onBack={() => setSelectedOutlet(null)} />;
   }
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.headerTitle}>South Kensington Outlets</Text>
-      {userProfile && (
-        <Text style={styles.welcomeText}>
-          Welcome back, {userProfile.user_name || "Student"}! 👋
-        </Text>
-      )}
+      <Text style={styles.headerTitle}>Imperial College London</Text>
+      <Text style={styles.subHeader}>South Kensington Campus</Text>
       <View style={styles.filtersContainer}>
         {isSearchOpen ? (
           <Animated.View style={[
@@ -259,13 +220,13 @@ const Home = () => {
               <Icon name="search" size={20} color="#333" />
             </TouchableOpacity>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterChipsRowInline}>
-              {(["Cafe", "Restaurant", "Bar"] as Outlet["category"][]).map(cat => (
+              {["All", "Cafe", "Restaurant", "Bar"].map((cat) => (
                 <TouchableOpacity
-                  key={cat}
-                  onPress={() => toggleCategory(cat)}
-                  style={[styles.chip, selectedCategories.has(cat) && styles.chipSelected]}
+                  key={cat as string}
+                  onPress={() => selectCategory(cat as any)}
+                  style={[styles.chip, selectedCategory === cat && styles.chipSelected]}
                 >
-                  <Text style={[styles.chipText, selectedCategories.has(cat) && styles.chipTextSelected]}>{formatCategoryLabel(cat)}</Text>
+                  <Text style={[styles.chipText, selectedCategory === cat && styles.chipTextSelected]}>{cat === "Cafe" ? "Café" : (cat as string)}</Text>
                 </TouchableOpacity>
               ))}
               <TouchableOpacity
@@ -318,6 +279,12 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#333",
     flex: 1,
+  },
+  subHeader: {
+    fontSize: 14,
+    color: "#666",
+    marginTop: 2,
+    marginBottom: 12,
   },
   welcomeText: {
     fontSize: 16,
@@ -408,9 +375,35 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
 
+  cardBannerContainer: {
+    width: "100%",
+    height: 120,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "#eaeaea",
+  },
+  cardBannerImage: {
+    width: "100%",
+    height: "100%",
+  },
+  cardBannerPlaceholder: {
+    flex: 1,
+    backgroundColor: "#cfe3ff", // pastel blue
+    alignItems: "flex-start",
+    justifyContent: "center",
+    paddingHorizontal: 12,
+  },
+  cardBannerPlaceholderText: {
+    color: "#0a3ea1",
+    fontWeight: "800",
+    fontSize: 20,
+  },
+
   cardContent: {
     padding: 16,
   },
+  
   restaurantName: {
     fontSize: 20,
     fontWeight: "bold",
@@ -492,6 +485,18 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
+  bannerContainer: {
+    width: "100%",
+    height: 160,
+    borderRadius: 12,
+    overflow: "hidden",
+    marginBottom: 12,
+    backgroundColor: "#eaeaea",
+  },
+  bannerImage: {
+    width: "100%",
+    height: "100%",
+  },
   restaurantHeaderName: {
     fontSize: 24,
     fontWeight: "bold",
@@ -503,6 +508,21 @@ const styles = StyleSheet.create({
     color: "#555",
     marginBottom: 12,
     lineHeight: 22,
+  },
+  detailBackFab: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  collapseToggle: {
+    alignSelf: 'center',
+    paddingVertical: 4,
   },
   restaurantHeaderDetails: {
     flexDirection: "row",

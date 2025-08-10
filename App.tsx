@@ -4,6 +4,7 @@ import { Amplify } from "aws-amplify";
 import { Authenticator } from "@aws-amplify/ui-react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import Icon from "react-native-vector-icons/MaterialIcons";
 
 import Profile from "./src/Profile";
 import Home from "./src/Home";
@@ -47,7 +48,24 @@ const ProfileWithHeader = () => <Profile />;
 
 const TabScreens = () => (
   <SafeAreaView style={styles.container}>
-    <Tab.Navigator screenOptions={{ headerShown: false }}>
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarActiveTintColor: "#007AFF",
+        tabBarInactiveTintColor: "#8e8e93",
+        tabBarStyle: { height: 56 },
+        tabBarIcon: ({ color, size }) => {
+          const iconMap: Record<string, string> = {
+            Home: "restaurant-menu",
+            Map: "map",
+            Deals: "local-offer",
+            Profile: "person",
+          };
+          const name = iconMap[route.name] ?? "circle";
+          return <Icon name={name} size={size ?? 24} color={color} />;
+        },
+      })}
+    >
       <Tab.Screen name="Home" component={Home} />
       <Tab.Screen name="Map" component={Map} />
       <Tab.Screen name="Deals" component={Deals} />
