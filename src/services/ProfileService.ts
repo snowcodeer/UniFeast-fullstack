@@ -1,4 +1,4 @@
-// src/services/SimpleUserService.ts
+// src/services/ProfileService.ts
 import { fetchAuthSession } from 'aws-amplify/auth';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
