@@ -3,11 +3,6 @@ import { fetchAuthSession } from 'aws-amplify/auth';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 
-/**
- * Simple service for unifeast-users DynamoDB table
- * Uses your existing Cognito user pool: YOUR_USER_POOL_ID_HERE
- */
-
 export interface UserProfile {
   user_id: string;
   user_name?: string;
@@ -20,47 +15,44 @@ export interface UserProfile {
   peanuts_allergy?: boolean;
   tree_nuts_allergy?: boolean;
   shellfish_allergy?: boolean;
-  other_allergies?: string[];  // Array of strings based on your table
+  other_allergies?: string[]; 
   session_data?: string;
   created_at?: string;
   updated_at?: string;
 }
 
 class SimpleUserService {
-  private client: DynamoDBDocumentClient | null = null;
   private readonly tableName = 'unifeast-users';
   private readonly region = 'eu-west-2';
 
   private async getClient(): Promise<DynamoDBDocumentClient> {
-    if (!this.client) {
-      try {
-        const session = await fetchAuthSession();
-        
-        if (!session.credentials) {
-          throw new Error('No credentials available');
-        }
-
-        const dynamoClient = new DynamoDBClient({
-          region: this.region,
-          credentials: {
-            accessKeyId: session.credentials.accessKeyId,
-            secretAccessKey: session.credentials.secretAccessKey,
-            sessionToken: session.credentials.sessionToken,
-          },
-        });
-
-        this.client = DynamoDBDocumentClient.from(dynamoClient, {
-          marshallOptions: {
-            convertEmptyValues: false,
-            removeUndefinedValues: true,
-          },
-        });
-      } catch (error) {
-        console.error('Failed to create DynamoDB client:', error);
-        throw error;
+    try {
+      // Fetch session; Amplify will use cached tokens and refresh only if expired
+      const session = await fetchAuthSession();
+      
+      if (!session.credentials) {
+        throw new Error('No credentials available');
       }
+
+      const dynamoClient = new DynamoDBClient({
+        region: this.region,
+        credentials: {
+          accessKeyId: session.credentials.accessKeyId,
+          secretAccessKey: session.credentials.secretAccessKey,
+          sessionToken: session.credentials.sessionToken,
+        },
+      });
+
+      return DynamoDBDocumentClient.from(dynamoClient, {
+        marshallOptions: {
+          convertEmptyValues: false,
+          removeUndefinedValues: true,
+        },
+      });
+    } catch (error) {
+      console.error('Failed to create DynamoDB client:', error);
+      throw error;
     }
-    return this.client;
   }
 
   async getUser(userId: string): Promise<UserProfile | null> {

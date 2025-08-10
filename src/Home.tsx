@@ -1,191 +1,36 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, TextInput } from "react-native";
+import Icon from "react-native-vector-icons/MaterialIcons";
 import { useAuthenticator } from "@aws-amplify/ui-react-native";
-import { userService, UserProfile } from "./services/SimpleUserService";
+import { userService, UserProfile } from "./services/ProfileService";
+import { localOutletService } from "./services/LocalOutletService";
+import type { Outlet } from "./data/outletsSouthKensington";
 
-// Mock data for restaurants with menu items
-const mockRestaurants = [
-  {
-    id: 1,
-    name: "Spice Garden",
-    description: "Authentic Indian cuisine with aromatic spices",
-    cuisine_type: "Indian",
-    rating: 4.5,
-    delivery_time: "20-30 min",
-    location: "Student Union Building",
-    menuItems: [
-      {
-        id: 1,
-        name: "Chicken Tikka Masala",
-        description: "Creamy curry with tender chicken pieces",
-        price: 8.50,
-        allergens: ["milk", "eggs"]
-      }
-    ]
-  },
-  {
-    id: 2,
-    name: "Fresh Bites",
-    description: "Healthy salads, wraps and fresh ingredients",
-    cuisine_type: "International",
-    rating: 4.3,
-    delivery_time: "15-25 min",
-    location: "Library Café",
-    menuItems: [
-      {
-        id: 2,
-        name: "Caesar Salad",
-        description: "Crisp lettuce with parmesan and croutons",
-        price: 6.00,
-        allergens: ["eggs", "gluten"]
-      }
-    ]
-  },
-  {
-    id: 3,
-    name: "Quick Eats",
-    description: "Fast and delicious comfort food",
-    cuisine_type: "American",
-    rating: 4.1,
-    delivery_time: "10-20 min",
-    location: "Food Court",
-    menuItems: [
-      {
-        id: 3,
-        name: "Classic Burger",
-        description: "Beef patty with lettuce, tomato, and special sauce",
-        price: 7.50,
-        allergens: ["gluten", "eggs"]
-      }
-    ]
-  },
-  {
-    id: 4,
-    name: "Pizza Palace",
-    description: "Wood-fired pizzas and Italian classics",
-    cuisine_type: "Italian",
-    rating: 4.6,
-    delivery_time: "25-35 min",
-    location: "Campus Center",
-    menuItems: [
-      {
-        id: 4,
-        name: "Margherita Pizza",
-        description: "Fresh mozzarella, tomato sauce, and basil",
-        price: 12.00,
-        allergens: ["milk", "gluten"]
-      }
-    ]
-  },
-  {
-    id: 5,
-    name: "Noodle House",
-    description: "Asian noodles, rice bowls and stir-fries",
-    cuisine_type: "Asian",
-    rating: 4.4,
-    delivery_time: "20-30 min",
-    location: "Engineering Building",
-    menuItems: [
-      {
-        id: 5,
-        name: "Chicken Pad Thai",
-        description: "Stir-fried rice noodles with chicken and peanuts",
-        price: 9.00,
-        allergens: ["peanuts", "eggs"]
-      }
-    ]
-  },
-  {
-    id: 6,
-    name: "Burger Junction",
-    description: "Gourmet burgers and crispy fries",
-    cuisine_type: "American",
-    rating: 4.2,
-    delivery_time: "15-25 min",
-    location: "Sports Complex",
-    menuItems: [
-      {
-        id: 6,
-        name: "BBQ Bacon Burger",
-        description: "Smoky BBQ sauce with crispy bacon and cheese",
-        price: 9.50,
-        allergens: ["milk", "gluten"]
-      }
-    ]
-  },
-  {
-    id: 7,
-    name: "Mediterranean Corner",
-    description: "Fresh Mediterranean dishes and healthy options",
-    cuisine_type: "Mediterranean",
-    rating: 4.4,
-    delivery_time: "20-25 min",
-    location: "Health Sciences Building",
-    menuItems: [
-      {
-        id: 7,
-        name: "Chicken Shawarma Wrap",
-        description: "Marinated chicken with tahini sauce and vegetables",
-        price: 8.00,
-        allergens: ["gluten", "sesame"]
-      }
-    ]
-  },
-  {
-    id: 8,
-    name: "Taco Fiesta",
-    description: "Authentic Mexican street food and tacos",
-    cuisine_type: "Mexican",
-    rating: 4.3,
-    delivery_time: "15-20 min",
-    location: "Arts Building",
-    menuItems: [
-      {
-        id: 8,
-        name: "Beef Carnitas Tacos",
-        description: "Slow-cooked beef with onions, cilantro, and lime",
-        price: 7.00,
-        allergens: ["gluten"]
-      }
-    ]
-  },
-  {
-    id: 9,
-    name: "Sushi Express",
-    description: "Fresh sushi and Japanese favorites",
-    cuisine_type: "Japanese",
-    rating: 4.7,
-    delivery_time: "25-30 min",
-    location: "Science Building",
-    menuItems: [
-      {
-        id: 9,
-        name: "Salmon Avocado Roll",
-        description: "Fresh salmon and avocado with sushi rice",
-        price: 10.50,
-        allergens: ["fish"]
-      }
-    ]
-  }
-];
+// Use local outlets dataset
+const outlets = localOutletService.getSouthKensingtonOutlets();
 
-const RestaurantCard = ({ restaurant, onPress }: { restaurant: any; onPress: () => void }) => {
+const formatCategoryLabel = (category: Outlet["category"]): string => (category === "Cafe" ? "Café" : category);
+
+const OutletCard = ({ outlet, isOpen, onPress }: { outlet: Outlet; isOpen: boolean; onPress: () => void }) => {
   return (
     <TouchableOpacity style={styles.card} onPress={onPress}>
       <View style={styles.cardContent}>
-        <Text style={styles.restaurantName}>{restaurant.name}</Text>
-        <Text style={styles.description}>{restaurant.description}</Text>
+        <Text style={styles.restaurantName}>{outlet.name}</Text>
+        <Text style={styles.description}>{outlet.description}</Text>
         
         <View style={styles.infoRow}>
-          <View style={styles.ratingContainer}>
-            <Text style={styles.rating}>⭐ {restaurant.rating}</Text>
-            <Text style={styles.deliveryTime}>{restaurant.delivery_time}</Text>
+          <View style={styles.locationRow}>
+            <Icon name="location-on" size={16} color="#d32f2f" style={styles.locationIcon} />
+            <Text style={styles.location}>{outlet.buildingOrArea || outlet.campus}</Text>
           </View>
-          <Text style={styles.location}>{restaurant.location}</Text>
         </View>
         
         <View style={styles.tags}>
-          <Text style={styles.tag}>{restaurant.cuisine_type}</Text>
+          <Text style={[styles.tag, isOpen ? styles.tagOpen : styles.tagClosed]}>{isOpen ? 'Open now' : 'Closed'}</Text>
+          <Text style={styles.tag}>{formatCategoryLabel(outlet.category)}</Text>
+          {outlet.tags?.slice(0, 2).map((t) => (
+            <Text key={t} style={styles.tag}>{t}</Text>
+          ))}
         </View>
       </View>
     </TouchableOpacity>
@@ -195,7 +40,10 @@ const RestaurantCard = ({ restaurant, onPress }: { restaurant: any; onPress: () 
 const Home = () => {
   const { user } = useAuthenticator();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [selectedRestaurant, setSelectedRestaurant] = useState<any>(null);
+  const [selectedOutlet, setSelectedOutlet] = useState<Outlet | null>(null);
+  const [selectedCategories, setSelectedCategories] = useState<Set<Outlet["category"]>>(new Set());
+  const [nowOpenOnly, setNowOpenOnly] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -210,52 +58,140 @@ const Home = () => {
     fetchProfile();
   }, [user]);
 
-  const handleRestaurantPress = (restaurant: any) => {
-    setSelectedRestaurant(restaurant);
-    // TODO: Navigate to restaurant menu
-    console.log("Navigate to restaurant:", restaurant.name);
+  const handleOutletPress = (outlet: Outlet) => {
+    setSelectedOutlet(outlet);
+    console.log("Open outlet:", outlet.name);
   };
 
-  // If a restaurant is selected, show its menu
-  if (selectedRestaurant) {
+  const toggleCategory = (category: Outlet["category"]) => {
+    setSelectedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(category)) {
+        next.delete(category);
+      } else {
+        next.add(category);
+      }
+      return next;
+    });
+  };
+
+  const resetFilters = () => {
+    setSelectedCategories(new Set());
+    setNowOpenOnly(false);
+    setSearchQuery("");
+  };
+
+  const isTimeRangeOpen = (timeRange: string): boolean => {
+    // Accept formats like "08:00–16:00" or "08:00-16:00"
+    if (!/\d/.test(timeRange)) return false;
+    const normalized = timeRange.replace(/\s/g, "");
+    const parts = normalized.split(/–|-/);
+    if (parts.length !== 2) return false;
+    const [start, end] = parts;
+    const toMinutes = (t: string): number => {
+      const match = t.match(/^(\d{1,2}):(\d{2})$/);
+      if (!match) return NaN;
+      const hh = parseInt(match[1], 10);
+      const mm = parseInt(match[2], 10);
+      return hh * 60 + mm;
+    };
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const startMin = toMinutes(start);
+    const endMin = toMinutes(end);
+    if (Number.isNaN(startMin) || Number.isNaN(endMin)) return false;
+    // Handle typical same-day ranges only
+    return nowMinutes >= startMin && nowMinutes <= endMin;
+  };
+
+  const isTodayInDays = (days: string): boolean => {
+    const dayMap = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const today = dayMap[new Date().getDay()];
+    const d = days.replace(/\s/g, "");
+    if (/Mon–Sun|Mon-Sun/i.test(d)) return true;
+    // Single day, e.g., "Sat" or "Sun"
+    if (dayMap.some(k => d === k)) return d === today;
+    // Ranges like "Mon–Fri", "Thu–Fri"
+    const match = d.match(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)[–-](Mon|Tue|Wed|Thu|Fri|Sat|Sun)$/);
+    if (!match) return false;
+    const startIdx = dayMap.indexOf(match[1]);
+    const endIdx = dayMap.indexOf(match[2]);
+    const todayIdx = dayMap.indexOf(today);
+    if (startIdx <= endIdx) {
+      return todayIdx >= startIdx && todayIdx <= endIdx;
+    }
+    // Wrap-around (unlikely in our data, but safe)
+    return todayIdx >= startIdx || todayIdx <= endIdx;
+  };
+
+  const isNowOpen = (outlet: Outlet): boolean => {
+    if (!outlet.openingHours || outlet.openingHours.length === 0) return false;
+    return outlet.openingHours.some(entry => isTodayInDays(entry.days) && isTimeRangeOpen(entry.time));
+  };
+
+  const matchesQuery = (outlet: Outlet): boolean => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    const fields = [
+      outlet.name,
+      outlet.description,
+      outlet.buildingOrArea || "",
+      ...(outlet.tags || []),
+    ].join(" ").toLowerCase();
+    return fields.includes(q);
+  };
+
+  const filteredOutlets = outlets.filter(o => {
+    if (selectedCategories.size > 0 && !selectedCategories.has(o.category)) return false;
+    if (nowOpenOnly && !isNowOpen(o)) return false;
+    if (!matchesQuery(o)) return false;
+    return true;
+  });
+
+  // If an outlet is selected, show its details
+  if (selectedOutlet) {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity 
             style={styles.backButton}
-            onPress={() => setSelectedRestaurant(null)}
+            onPress={() => setSelectedOutlet(null)}
           >
             <Text style={styles.backButtonText}>← Back</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{selectedRestaurant.name}</Text>
+          <Text style={styles.headerTitle}>{selectedOutlet.name}</Text>
         </View>
         
         <ScrollView style={styles.menuContainer}>
           <View style={styles.restaurantInfo}>
-            <Text style={styles.restaurantHeaderName}>{selectedRestaurant.name}</Text>
-            <Text style={styles.restaurantHeaderDescription}>{selectedRestaurant.description}</Text>
+            <Text style={styles.restaurantHeaderName}>{selectedOutlet.name}</Text>
+            <Text style={styles.restaurantHeaderDescription}>{selectedOutlet.description}</Text>
             <View style={styles.restaurantHeaderDetails}>
-              <Text style={styles.rating}>⭐ {selectedRestaurant.rating}</Text>
-              <Text style={styles.deliveryTime}>{selectedRestaurant.delivery_time}</Text>
-              <Text style={styles.location}>{selectedRestaurant.location}</Text>
+              <Text style={styles.location}>{selectedOutlet.buildingOrArea || selectedOutlet.campus}</Text>
+              <Text style={styles.tag}>{selectedOutlet.category}</Text>
             </View>
           </View>
-          
-          <Text style={styles.menuSectionTitle}>Menu</Text>
-          {selectedRestaurant.menuItems.map((item: any) => (
-            <View key={item.id} style={styles.menuItem}>
-              <View style={styles.menuItemHeader}>
-                <Text style={styles.menuItemName}>{item.name}</Text>
-                <Text style={styles.menuItemPrice}>£{item.price.toFixed(2)}</Text>
-              </View>
-              <Text style={styles.menuItemDescription}>{item.description}</Text>
-              {item.allergens.length > 0 && (
-                <Text style={styles.allergenInfo}>
-                  ⚠️ Contains: {item.allergens.join(", ")}
-                </Text>
-              )}
+
+          {selectedOutlet.openingHours && selectedOutlet.openingHours.length > 0 && (
+            <View style={styles.menuItem}>
+              <Text style={styles.menuSectionTitle}>Opening Hours</Text>
+              {selectedOutlet.openingHours.map((oh, idx) => (
+                <View key={`${oh.days}-${idx}`} style={{ marginBottom: 6 }}>
+                  <Text style={{ fontWeight: "600", color: "#333" }}>{oh.days}</Text>
+                  <Text style={{ color: "#555" }}>{oh.time}</Text>
+                </View>
+              ))}
             </View>
-          ))}
+          )}
+
+          <View style={styles.menuItem}>
+            <Text style={styles.menuSectionTitle}>More info</Text>
+            {selectedOutlet.details ? (
+              <Text style={styles.menuItemDescription}>{selectedOutlet.details}</Text>
+            ) : null}
+            <Text style={[styles.menuItemDescription, { color: "#007AFF" }]}>Source</Text>
+            <Text style={{ color: "#007AFF" }}>{selectedOutlet.url}</Text>
+          </View>
         </ScrollView>
       </View>
     );
@@ -263,18 +199,48 @@ const Home = () => {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.headerTitle}>Restaurants</Text>
+      <Text style={styles.headerTitle}>South Kensington Outlets</Text>
       {userProfile && (
         <Text style={styles.welcomeText}>
           Welcome back, {userProfile.user_name || "Student"}! 👋
         </Text>
       )}
+      <View style={styles.filtersContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search by name, description, tags"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholderTextColor="#999"
+        />
+        <View style={styles.filterChipsRow}>
+          {(["Cafe", "Restaurant", "Bar"] as Outlet["category"][]).map(cat => (
+            <TouchableOpacity
+              key={cat}
+              onPress={() => toggleCategory(cat)}
+              style={[styles.chip, selectedCategories.has(cat) && styles.chipSelected]}
+            >
+              <Text style={[styles.chipText, selectedCategories.has(cat) && styles.chipTextSelected]}>{formatCategoryLabel(cat)}</Text>
+            </TouchableOpacity>
+          ))}
+          <TouchableOpacity
+            onPress={() => setNowOpenOnly(v => !v)}
+            style={[styles.chip, nowOpenOnly && styles.chipSelected]}
+          >
+            <Text style={[styles.chipText, nowOpenOnly && styles.chipTextSelected]}>Now open</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={resetFilters} style={[styles.chip, styles.resetChip]}>
+            <Text style={[styles.chipText, styles.resetChipText]}>Reset</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
       
-      {mockRestaurants.map((restaurant) => (
-        <RestaurantCard 
-          key={restaurant.id} 
-          restaurant={restaurant}
-          onPress={() => handleRestaurantPress(restaurant)}
+      {filteredOutlets.map((outlet) => (
+        <OutletCard 
+          key={outlet.id} 
+          outlet={outlet}
+          isOpen={isNowOpen(outlet)}
+          onPress={() => handleOutletPress(outlet)}
         />
       ))}
     </ScrollView>
@@ -311,6 +277,53 @@ const styles = StyleSheet.create({
     color: "#666",
     marginBottom: 16,
   },
+  filtersContainer: {
+    backgroundColor: "white",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+  },
+  searchInput: {
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 8,
+    color: "#333",
+  },
+  filterChipsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  chip: {
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: "#fafafa",
+  },
+  chipSelected: {
+    backgroundColor: "#007AFF",
+    borderColor: "#007AFF",
+  },
+  chipText: {
+    color: "#333",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  chipTextSelected: {
+    color: "white",
+  },
+  resetChip: {
+    backgroundColor: "#fff0f0",
+    borderColor: "#ffd6d6",
+  },
+  resetChipText: {
+    color: "#d32f2f",
+  },
   card: {
     backgroundColor: "white",
     borderRadius: 12,
@@ -346,6 +359,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 12,
   },
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  locationIcon: {
+    marginTop: 1,
+  },
   ratingContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -375,6 +396,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
+  },
+  tagOpen: {
+    backgroundColor: "#e8f5e9",
+    color: "#2e7d32",
+  },
+  tagClosed: {
+    backgroundColor: "#ffebee",
+    color: "#c62828",
   },
   menuContainer: {
     flex: 1,

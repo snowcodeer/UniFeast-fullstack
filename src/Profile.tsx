@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { View, Text, TextInput, Button, ScrollView, TouchableOpacity, Switch, Alert } from "react-native";
 import { useAuthenticator } from "@aws-amplify/ui-react-native";
-import { userService, UserProfile } from "./services/SimpleUserService";
+import { userService, UserProfile } from "./services/ProfileService";
 
 const DIETARY_OPTIONS = [
   "Halal",
