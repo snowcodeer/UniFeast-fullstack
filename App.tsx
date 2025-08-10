@@ -1,5 +1,5 @@
 import React from "react";
-import { Button, View, StyleSheet, SafeAreaView, Text } from "react-native";
+import { Button, View, StyleSheet, SafeAreaView } from "react-native";
 import { Amplify } from "aws-amplify";
 import { Authenticator } from "@aws-amplify/ui-react-native";
 import { NavigationContainer } from "@react-navigation/native";

@@ -13,6 +13,11 @@ import OutletView from "./components/OutletView";
 const outlets = localOutletService.getSouthKensingtonOutlets();
 
 const formatCategoryLabel = (category: Outlet["category"]): string => (category === "Cafe" ? "Café" : category);
+const formatTag = (tag: string): string =>
+  tag
+    .split(' ')
+    .map(w => (w.length > 0 ? w[0].toUpperCase() + w.slice(1) : w))
+    .join(' ');
 
 const OutletCard = ({ outlet, isOpen, onPress }: { outlet: Outlet; isOpen: boolean; onPress: () => void }) => {
   return (
@@ -46,7 +51,7 @@ const OutletCard = ({ outlet, isOpen, onPress }: { outlet: Outlet; isOpen: boole
           <Text style={[styles.tag, isOpen ? styles.tagOpen : styles.tagClosed]}>{isOpen ? 'Open now' : 'Closed'}</Text>
           <Text style={styles.tag}>{formatCategoryLabel(outlet.category)}</Text>
           {outlet.tags?.slice(0, 2).map((t) => (
-            <Text key={t} style={styles.tag}>{t}</Text>
+            <Text key={t} style={styles.tag}>{formatTag(t)}</Text>
           ))}
         </View>
       </View>
