@@ -1,10 +1,14 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { Image as ExpoImage } from "expo-image";
-import type { Outlet } from "../data/outletsSouthKensington";
+import type { Restaurant } from "../services/FoodDatabaseService";
 import type { UserProfile } from "../services/ProfileService";
+import { foodDatabaseService } from "../services/FoodDatabaseService";
 import outletBanners from "../assets/outletBanners";
+
+// Use Restaurant type as Outlet replacement  
+type Outlet = Restaurant;
 
 const formatCategoryLabel = (category: Outlet["category"]): string => (category === "Cafe" ? "Café" : category);
 
@@ -15,56 +19,69 @@ type Props = {
 };
 
 const OutletView: React.FC<Props> = ({ outlet, onBack, userProfile }) => {
-  // No description toggle; always show description
-  const rightAlignedIds = new Set(["kimiko", "huxley-cafe"]);
+  const [foodItems, setFoodItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeFilter, setActiveFilter] = useState<string>("All");
 
-  const filterCategories = [
-    "All",
-    "Drinks",
-    "Pastries",
-    "Cold Food",
-    "Hot Food",
-    "Snacks",
-    "Desserts",
-  ] as const;
+  // Use banner_position from outlet data if available, otherwise fallback to hardcoded
+  const getBannerPosition = () => {
+    if ('banner_position' in outlet && outlet.banner_position) {
+      return outlet.banner_position;
+    }
+    // Fallback to hardcoded positions
+    const rightAlignedIds = new Set(["kimiko", "huxley-cafe"]);
+    return rightAlignedIds.has(outlet.id) ? "right center" : "left center";
+  };
 
-  const [activeFilter, setActiveFilter] = React.useState<string>("All");
+  useEffect(() => {
+    const fetchFoodItems = async () => {
+      try {
+        setLoading(true);
+        const items = await foodDatabaseService.getFoodItemsByRestaurant(outlet.id);
+        setFoodItems(items);
+      } catch (error) {
+        console.error('Error fetching food items:', error);
+        setFoodItems([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFoodItems();
+  }, [outlet.id]);
+
+  // Get unique categories from food items
+  const categories = React.useMemo(() => {
+    const cats = foodItems.map(item => item.category).filter(Boolean);
+    return ["All", ...Array.from(new Set(cats))];
+  }, [foodItems]);
 
   const selectFilter = (label: string) => {
     setActiveFilter(label);
   };
 
-  const menuItems = React.useMemo(() => {
-    const base = [
-      { id: "m1", name: `${outlet.name} House Coffee`, desc: "Freshly brewed coffee.", price: 2.5, category: "Drinks", allergens: ["Contains caffeine"] },
-      { id: "m2", name: `${outlet.name} Iced Tea`, desc: "Refreshing iced tea.", price: 2.8, category: "Drinks", allergens: ["Contains caffeine"] },
-      { id: "m3", name: "Butter Croissant", desc: "Flaky, baked daily.", price: 2.2, category: "Pastries", allergens: ["Contains gluten", "May contain nuts"] },
-      { id: "m4", name: "Chocolate Muffin", desc: "Rich cocoa muffin.", price: 2.4, category: "Pastries", allergens: ["Contains gluten", "May contain nuts"] },
-      { id: "m5", name: "Chicken Caesar Wrap", desc: "Chilled wrap with salad.", price: 4.9, category: "Cold Food", allergens: ["Contains gluten"] },
-      { id: "m6", name: "Greek Salad", desc: "Feta, olives, tomatoes.", price: 4.5, category: "Cold Food", allergens: ["Contains dairy"] },
-      { id: "m7", name: "Tomato Soup", desc: "Served hot.", price: 3.5, category: "Hot Food", allergens: ["Contains celery"] },
-      { id: "m8", name: "Margherita Slice", desc: "Hot pizza slice.", price: 3.2, category: "Hot Food", allergens: ["Contains gluten", "Contains dairy"] },
-      { id: "m9", name: "Crisps", desc: "Lightly salted.", price: 1.2, category: "Snacks", allergens: ["May contain traces"] },
-      { id: "m10", name: "Brownie", desc: "Fudgy chocolate.", price: 2.0, category: "Desserts", allergens: ["Contains gluten", "Contains eggs", "May contain nuts"] },
-    ] as const;
-
-    if (activeFilter === "All") return base;
-    return base.filter(item => item.category === activeFilter);
-  }, [outlet.name, activeFilter]);
+  const filteredFoodItems = React.useMemo(() => {
+    if (activeFilter === "All") return foodItems;
+    return foodItems.filter(item => item.category === activeFilter);
+  }, [foodItems, activeFilter]);
 
   const getItemIcon = (category: string): string => {
-    switch (category) {
-      case "Drinks":
-        return "local-cafe"; // or local-drink
-      case "Pastries":
+    switch (category?.toLowerCase()) {
+      case "drinks":
+      case "beverages":
+        return "local-cafe";
+      case "pastries":
+      case "bakery":
         return "bakery-dining";
-      case "Cold Food":
+      case "cold food":
+      case "salads":
         return "lunch-dining";
-      case "Hot Food":
+      case "hot food":
+      case "main dishes":
         return "ramen-dining";
-      case "Snacks":
+      case "snacks":
         return "fastfood";
-      case "Desserts":
+      case "desserts":
         return "icecream";
       default:
         return "restaurant";
@@ -77,11 +94,11 @@ const OutletView: React.FC<Props> = ({ outlet, onBack, userProfile }) => {
       const pushIf = (cond?: boolean, label?: string) => {
         if (cond && label) terms.push(label);
       };
-      pushIf((userProfile as any).milk_allergy, "milk");
-      pushIf((userProfile as any).eggs_allergy, "egg");
-      pushIf((userProfile as any).peanuts_allergy, "peanut");
-      pushIf((userProfile as any).tree_nuts_allergy, "nut");
-      pushIf((userProfile as any).shellfish_allergy, "shellfish");
+      pushIf(userProfile.milk_allergy, "milk");
+      pushIf(userProfile.eggs_allergy, "egg");
+      pushIf(userProfile.peanuts_allergy, "peanut");
+      pushIf(userProfile.tree_nuts_allergy, "nut");
+      pushIf(userProfile.shellfish_allergy, "shellfish");
       const other = Array.isArray(userProfile.other_allergies) ? userProfile.other_allergies : [];
       other.forEach(o => {
         if (typeof o === "string") terms.push(o.toLowerCase());
@@ -89,6 +106,22 @@ const OutletView: React.FC<Props> = ({ outlet, onBack, userProfile }) => {
     }
     return new Set(terms.map(t => t.toLowerCase()));
   }, [userProfile]);
+
+  const getAllergens = (item: any): string[] => {
+    const allergens: string[] = [];
+    
+    if (item.milk_allergy) allergens.push("Contains milk");
+    if (item.eggs_allergy) allergens.push("Contains eggs");
+    if (item.peanuts_allergy) allergens.push("Contains peanuts");
+    if (item.tree_nuts_allergy) allergens.push("Contains tree nuts");
+    if (item.shellfish_allergy) allergens.push("Contains shellfish");
+    
+    if (item.other_allergens && Array.isArray(item.other_allergens)) {
+      allergens.push(...item.other_allergens);
+    }
+    
+    return allergens;
+  };
 
   return (
     <View style={styles.container}>
@@ -99,7 +132,7 @@ const OutletView: React.FC<Props> = ({ outlet, onBack, userProfile }) => {
               source={outletBanners[outlet.id]}
               style={styles.bannerImage}
               contentFit="cover"
-              contentPosition={rightAlignedIds.has(outlet.id) ? "right center" : "left center"}
+              contentPosition={getBannerPosition() as any}
               transition={120}
             />
           ) : (
@@ -139,58 +172,89 @@ const OutletView: React.FC<Props> = ({ outlet, onBack, userProfile }) => {
         <View style={styles.menuHeaderPad}>
           <View style={styles.menuHeaderRow}>
             <Text style={styles.menuTitle}>Menu</Text>
+            {loading && <Text style={styles.loadingText}>Loading...</Text>}
           </View>
         </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={[styles.filterChipsRowInline, styles.filterChipsPad]}
-        >
-          {filterCategories.map((label) => {
-            const selected = activeFilter === label;
-            return (
-              <TouchableOpacity
-                key={label}
-                onPress={() => selectFilter(label)}
-                style={[styles.chip, selected && styles.chipSelected]}
-              >
-                <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
 
-        {menuItems.map((item) => (
-          <View key={item.id} style={styles.card}>
-            <View style={styles.foodCard}>
-              <View style={styles.foodIconContainer}>
-                <Icon name={getItemIcon(item.category as unknown as string)} size={28} color="#ffffff" />
-              </View>
-              <View style={styles.foodInfo}>
-                <Text style={styles.foodName}>{item.name}</Text>
-                {Array.isArray((item as any).allergens) && (item as any).allergens.length > 0 ? (() => {
-                  const matched = (item as any).allergens.filter((a: string) => {
-                    const al = a.toLowerCase();
-                    for (const term of Array.from(userAllergenTerms)) {
-                      if (al.includes(term)) return true;
-                    }
-                    return false;
-                  });
-                  return matched.length > 0 ? (
+        {categories.length > 1 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={[styles.filterChipsRowInline, styles.filterChipsPad]}
+          >
+            {categories.map((label) => {
+              const selected = activeFilter === label;
+              return (
+                <TouchableOpacity
+                  key={label}
+                  onPress={() => selectFilter(label)}
+                  style={[styles.chip, selected && styles.chipSelected]}
+                >
+                  <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        )}
+
+        {filteredFoodItems.map((item) => {
+          const allergens = getAllergens(item);
+          const matchedAllergens = allergens.filter(a => {
+            const al = a.toLowerCase();
+            for (const term of Array.from(userAllergenTerms)) {
+              if (al.includes(term)) return true;
+            }
+            return false;
+          });
+
+          return (
+            <View key={item.id} style={styles.card}>
+              <View style={styles.foodCard}>
+                <View style={styles.foodIconContainer}>
+                  <Icon name={getItemIcon(item.category)} size={28} color="#ffffff" />
+                </View>
+                <View style={styles.foodInfo}>
+                  <Text style={styles.foodName}>{item.dish_name}</Text>
+                  {item.description && (
+                    <Text style={styles.foodDesc}>{item.description}</Text>
+                  )}
+                  {matchedAllergens.length > 0 && (
                     <View style={styles.allergenTagsRow}>
-                      {matched.map((a: string) => (
+                      {matchedAllergens.map((a) => (
                         <View key={a} style={styles.allergenTag}>
                           <Text style={styles.allergenTagText}>{a}</Text>
                         </View>
                       ))}
                     </View>
-                  ) : null;
-                })() : null}
-                <Text style={styles.foodPrice}>£{item.price.toFixed(2)}</Text>
+                  )}
+                  <View style={styles.priceRow}>
+                    {item.student_price && (
+                      <Text style={styles.foodPrice}>Student: £{item.student_price}</Text>
+                    )}
+                    {item.staff_price && (
+                      <Text style={styles.foodPrice}>Staff: £{item.staff_price}</Text>
+                    )}
+                  </View>
+                  {item.dietary_tags && item.dietary_tags.length > 0 && (
+                    <View style={styles.dietaryTagsRow}>
+                      {item.dietary_tags.map((tag: string) => (
+                        <View key={tag} style={styles.dietaryTag}>
+                          <Text style={styles.dietaryTagText}>{tag}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
               </View>
             </View>
+          );
+        })}
+
+        {!loading && filteredFoodItems.length === 0 && (
+          <View style={styles.card}>
+            <Text style={styles.noItemsText}>No menu items available</Text>
           </View>
-        ))}
+        )}
       </ScrollView>
     </View>
   );
@@ -246,15 +310,12 @@ const styles = StyleSheet.create({
   locationText: { fontSize: 14, color: "#666" },
   tag: { fontSize: 12, color: "#666", backgroundColor: "#f0f0f0", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
   description: { fontSize: 16, color: "#555", lineHeight: 22 },
-  // removed collapse toggle styles
   sectionTitle: { fontSize: 20, fontWeight: "bold", color: "#333", marginBottom: 12 },
-  bodyText: { fontSize: 14, color: "#555", lineHeight: 20 },
   menuHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  // Align to card text: card margin (12) + card padding (16) = 28
   menuHeaderPad: { paddingHorizontal: 28, paddingTop: 12 },
   menuTitle: { fontSize: 24, fontWeight: '800', color: '#222' },
+  loadingText: { fontSize: 14, color: '#666', fontStyle: 'italic' },
   filterChipsRowInline: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  // Match card side margins (12) rather than card text (28)
   filterChipsPad: { paddingHorizontal: 12, paddingBottom: 6 },
   chip: {
     borderWidth: 1,
@@ -268,7 +329,6 @@ const styles = StyleSheet.create({
   chipSelected: { backgroundColor: '#007AFF', borderColor: '#007AFF' },
   chipText: { color: '#333', fontSize: 13, fontWeight: '600' },
   chipTextSelected: { color: 'white' },
-  // removed global allergen notice
   foodCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -284,12 +344,16 @@ const styles = StyleSheet.create({
   },
   foodInfo: { flex: 1 },
   foodName: { fontSize: 16, fontWeight: '700', color: '#333', marginBottom: 4 },
-  // foodDesc removed
+  foodDesc: { fontSize: 14, color: '#666', marginBottom: 4, lineHeight: 18 },
   allergenTagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 6 },
   allergenTag: { backgroundColor: '#FFF3E0', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 2 },
   allergenTagText: { color: '#E65100', fontSize: 11, fontWeight: '600' },
+  priceRow: { flexDirection: 'row', gap: 12, marginBottom: 4 },
   foodPrice: { fontSize: 14, fontWeight: '700', color: '#2E7D32' },
+  dietaryTagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  dietaryTag: { backgroundColor: '#E3F2FD', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 2 },
+  dietaryTagText: { color: '#1976D2', fontSize: 11, fontWeight: '600' },
+  noItemsText: { fontSize: 16, color: '#666', textAlign: 'center', fontStyle: 'italic' },
 });
 
 export default OutletView;
-

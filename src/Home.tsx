@@ -4,13 +4,13 @@ import { Image as ExpoImage } from "expo-image";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { useAuthenticator } from "@aws-amplify/ui-react-native";
 import { userService, UserProfile } from "./services/ProfileService";
-import { localOutletService } from "./services/LocalOutletService";
-import type { Outlet } from "./data/outletsSouthKensington";
+import { restaurantService } from "./services/RestaurantService";
+import type { Restaurant } from "./services/FoodDatabaseService";
 import outletBanners from "./assets/outletBanners";
 import OutletView from "./components/OutletView";
 
-// Use local outlets dataset
-const outlets = localOutletService.getSouthKensingtonOutlets();
+// Use Restaurant type as Outlet replacement
+type Outlet = Restaurant;
 
 const formatCategoryLabel = (category: Outlet["category"]): string => (category === "Cafe" ? "Café" : category);
 const formatTag = (tag: string): string =>
@@ -19,7 +19,12 @@ const formatTag = (tag: string): string =>
     .map(w => (w.length > 0 ? w[0].toUpperCase() + w.slice(1) : w))
     .join(' ');
 
-const OutletCard = ({ outlet, isOpen, onPress }: { outlet: Outlet; isOpen: boolean; onPress: () => void }) => {
+const OutletCard = ({ outlet, isOpen, bannerPosition, onPress }: { 
+  outlet: Outlet; 
+  isOpen: boolean; 
+  bannerPosition?: string;
+  onPress: () => void 
+}) => {
   return (
     <TouchableOpacity style={styles.card} onPress={onPress}>
       <View style={styles.cardBannerContainer}>
@@ -28,7 +33,7 @@ const OutletCard = ({ outlet, isOpen, onPress }: { outlet: Outlet; isOpen: boole
             source={outletBanners[outlet.id]}
             style={styles.cardBannerImage}
             contentFit="cover"
-            contentPosition={(outlet.id === 'kimiko' || outlet.id === 'huxley-cafe') ? 'right center' : 'left center'}
+            contentPosition={(bannerPosition as any) || 'left center'}
             transition={100}
           />
         ) : (
@@ -48,7 +53,7 @@ const OutletCard = ({ outlet, isOpen, onPress }: { outlet: Outlet; isOpen: boole
         </View>
         
         <View style={styles.tags}>
-          <Text style={[styles.tag, isOpen ? styles.tagOpen : styles.tagClosed]}>{isOpen ? 'Open now' : 'Closed'}</Text>
+                        <Text style={[styles.tag, isOpen ? styles.tagOpen : styles.tagClosed]}>{isOpen ? 'Open' : 'Closed'}</Text>
           <Text style={styles.tag}>{formatCategoryLabel(outlet.category)}</Text>
           {outlet.tags?.slice(0, 2).map((t) => (
             <Text key={t} style={styles.tag}>{formatTag(t)}</Text>
@@ -63,11 +68,14 @@ const Home = () => {
   const { user } = useAuthenticator();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [selectedOutlet, setSelectedOutlet] = useState<Outlet | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<Outlet["category"] | "All" | null>("All");
+  const [selectedCategory, setSelectedCategory] = useState<Outlet["category"] | null>(null);
   const [nowOpenOnly, setNowOpenOnly] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
   const searchAnim = useRef(new Animated.Value(0)).current;
+  const [outlets, setOutlets] = useState<Outlet[]>([]);
+  const [bannerPositions, setBannerPositions] = useState<Record<string, string>>({});
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const openSearch = () => {
     setIsSearchOpen(true);
@@ -104,20 +112,42 @@ const Home = () => {
     fetchProfile();
   }, [user]);
 
+  useEffect(() => {
+    const fetchOutlets = async () => {
+      try {
+        setIsLoading(true);
+        const outletsData = await restaurantService.getSouthKensingtonOutlets();
+        setOutlets(outletsData);
+
+        // Fetch banner positions for all outlets
+        const positions: Record<string, string> = {};
+        await Promise.all(
+          outletsData.map(async (outlet) => {
+            const position = await restaurantService.getBannerPosition(outlet.id);
+            positions[outlet.id] = position;
+          })
+        );
+        setBannerPositions(positions);
+      } catch (error) {
+        console.error('Error fetching outlets:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchOutlets();
+  }, []);
+
   const handleOutletPress = (outlet: Outlet) => {
     setSelectedOutlet(outlet);
     console.log("Open outlet:", outlet.name);
   };
 
-  const selectCategory = (category: Outlet["category"] | "All") => {
+  const selectCategory = (category: Outlet["category"]) => {
     setSelectedCategory(category);
   };
 
-  const resetFilters = () => {
-    setSelectedCategory("All");
-    setNowOpenOnly(false);
-    setSearchQuery("");
-  };
+
 
   const isTimeRangeOpen = (timeRange: string): boolean => {
     // Accept formats like "08:00–16:00" or "08:00-16:00"
@@ -180,7 +210,7 @@ const Home = () => {
   };
 
   const filteredOutlets = outlets.filter(o => {
-    if (selectedCategory && selectedCategory !== "All" && o.category !== selectedCategory) return false;
+    if (selectedCategory && o.category !== selectedCategory) return false;
     if (nowOpenOnly && !isNowOpen(o)) return false;
     if (!matchesQuery(o)) return false;
     return true;
@@ -225,7 +255,7 @@ const Home = () => {
               <Icon name="search" size={20} color="#333" />
             </TouchableOpacity>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterChipsRowInline}>
-              {["All", "Cafe", "Restaurant", "Bar"].map((cat) => (
+              {["Cafe", "Restaurant", "Bar"].map((cat) => (
                 <TouchableOpacity
                   key={cat as string}
                   onPress={() => selectCategory(cat as any)}
@@ -240,22 +270,26 @@ const Home = () => {
               >
                 <Text style={[styles.chipText, nowOpenOnly && styles.chipTextSelected]}>Open</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={resetFilters} style={styles.iconButton}>
-                <Icon name="refresh" size={18} color="#666" />
-              </TouchableOpacity>
             </ScrollView>
           </View>
         )}
       </View>
       
-      {filteredOutlets.map((outlet) => (
-        <OutletCard 
-          key={outlet.id} 
-          outlet={outlet}
-          isOpen={isNowOpen(outlet)}
-          onPress={() => handleOutletPress(outlet)}
-        />
-      ))}
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading restaurants...</Text>
+        </View>
+      ) : (
+        filteredOutlets.map((outlet) => (
+          <OutletCard 
+            key={outlet.id} 
+            outlet={outlet}
+            isOpen={isNowOpen(outlet)}
+            bannerPosition={bannerPositions[outlet.id]}
+            onPress={() => handleOutletPress(outlet)}
+          />
+        ))
+      )}
     </ScrollView>
   );
 };
@@ -581,6 +615,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#D32F2F",
     fontWeight: "500",
+  },
+  loadingContainer: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
   },
 });
 

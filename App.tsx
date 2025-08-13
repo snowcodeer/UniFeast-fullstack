@@ -5,6 +5,12 @@ import { Authenticator } from "@aws-amplify/ui-react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import Icon from "react-native-vector-icons/MaterialIcons";
+import {
+  EXPO_PUBLIC_AWS_REGION,
+  EXPO_PUBLIC_USER_POOL_ID,
+  EXPO_PUBLIC_USER_POOL_CLIENT_ID,
+  EXPO_PUBLIC_IDENTITY_POOL_ID,
+} from '@env';
 
 import Profile from "./src/Profile";
 import Home from "./src/Home";
@@ -12,10 +18,10 @@ import Map from "./src/Map";
 
 Amplify.configure({
   "auth": {
-    "user_pool_id": "YOUR_USER_POOL_ID_HERE",
-    "aws_region": "eu-west-2",
-    "user_pool_client_id": "YOUR_USER_POOL_CLIENT_ID_HERE",
-    "identity_pool_id": "YOUR_IDENTITY_POOL_ID_HERE",
+    "user_pool_id": EXPO_PUBLIC_USER_POOL_ID,
+    "aws_region": EXPO_PUBLIC_AWS_REGION,
+    "user_pool_client_id": EXPO_PUBLIC_USER_POOL_CLIENT_ID,
+    "identity_pool_id": EXPO_PUBLIC_IDENTITY_POOL_ID,
     "mfa_methods": [],
     "standard_required_attributes": [
       "email"
@@ -40,8 +46,6 @@ Amplify.configure({
   "version": "1.4"
 });
 
-const Deals = () => <View style={styles.center}><Button title="Deals Placeholder" onPress={() => {}} /></View>;
-
 const Tab = createBottomTabNavigator();
 
 const ProfileWithHeader = () => <Profile />;
@@ -58,7 +62,6 @@ const TabScreens = () => (
           const iconMap: Record<string, string> = {
             Home: "restaurant-menu",
             Map: "map",
-            Deals: "local-offer",
             Profile: "person",
           };
           const name = iconMap[route.name] ?? "circle";
@@ -68,7 +71,6 @@ const TabScreens = () => (
     >
       <Tab.Screen name="Home" component={Home} />
       <Tab.Screen name="Map" component={Map} />
-      <Tab.Screen name="Deals" component={Deals} />
       <Tab.Screen name="Profile" component={ProfileWithHeader} />
     </Tab.Navigator>
   </SafeAreaView>
