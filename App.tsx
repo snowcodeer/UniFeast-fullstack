@@ -6,10 +6,10 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import {
-  EXPO_PUBLIC_AWS_REGION,
-  EXPO_PUBLIC_USER_POOL_ID,
-  EXPO_PUBLIC_USER_POOL_CLIENT_ID,
-  EXPO_PUBLIC_IDENTITY_POOL_ID,
+  AWS_REGION,
+  USER_POOL_ID,
+  USER_POOL_CLIENT_ID,
+  IDENTITY_POOL_ID,
 } from '@env';
 
 import Profile from "./src/Profile";
@@ -18,10 +18,10 @@ import Map from "./src/Map";
 
 Amplify.configure({
   "auth": {
-    "user_pool_id": EXPO_PUBLIC_USER_POOL_ID,
-    "aws_region": EXPO_PUBLIC_AWS_REGION,
-    "user_pool_client_id": EXPO_PUBLIC_USER_POOL_CLIENT_ID,
-    "identity_pool_id": EXPO_PUBLIC_IDENTITY_POOL_ID,
+    "user_pool_id": USER_POOL_ID,
+    "aws_region": AWS_REGION,
+    "user_pool_client_id": USER_POOL_CLIENT_ID,
+    "identity_pool_id": IDENTITY_POOL_ID,
     "mfa_methods": [],
     "standard_required_attributes": [
       "email"

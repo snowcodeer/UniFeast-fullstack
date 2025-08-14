@@ -1,16 +1,16 @@
 // src/services/FoodDatabaseService.ts
 import { auroraService, DatabaseConfig } from './AuroraService';
 import {
-  EXPO_PUBLIC_AURORA_RESOURCE_ARN,
-  EXPO_PUBLIC_AURORA_SECRET_ARN,
-  EXPO_PUBLIC_FOOD_DATABASE_NAME,
+  AURORA_RESOURCE_ARN,
+  AURORA_SECRET_ARN,
+  FOOD_DATABASE_NAME,
 } from '@env';
 
 // Database configuration for Food Database (readonly Aurora cluster)
 const FOOD_DB_CONFIG: DatabaseConfig = {
-  resourceArn: EXPO_PUBLIC_AURORA_RESOURCE_ARN,
-  secretArn: EXPO_PUBLIC_AURORA_SECRET_ARN,
-  database: EXPO_PUBLIC_FOOD_DATABASE_NAME,
+  resourceArn: AURORA_RESOURCE_ARN,
+  secretArn: AURORA_SECRET_ARN,
+  database: FOOD_DATABASE_NAME,
   readonly: true,
 };
 

@@ -31,6 +31,8 @@
     "expo-status-bar": "~2.2.3",
     "react": "19.0.0",
     "react-native": "0.79.5",
+    "react-native-config": "^1.5.6",
+    "react-native-dotenv": "^3.4.11",
     "react-native-get-random-values": "^1.11.0",
     "react-native-maps": "^1.24.13",
     "react-native-safe-area-context": "^5.4.0",
@@ -48,7 +50,6 @@
     "aws-cdk-lib": "^2.204.0",
     "constructs": "^10.4.2",
     "esbuild": "^0.25.8",
-    "react-native-dotenv": "^3.4.11",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3"
   },

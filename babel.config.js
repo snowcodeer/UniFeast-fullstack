@@ -15,6 +15,28 @@ module.exports = function (api) {
           allowUndefined: true,
         },
       ],
+      // Add ES module transformation to handle react-native-config and other ES modules
+      ['@babel/plugin-transform-modules-commonjs', {
+        allowTopLevelThis: true,
+        lazy: true,
+        strictMode: false
+      }],
+      // Add runtime transformation for better ES module compatibility
+      ['@babel/plugin-transform-runtime', {
+        absoluteRuntime: false,
+        corejs: false,
+        helpers: true,
+        regenerator: true,
+        useESModules: false
+      }]
     ],
+    env: {
+      production: {
+        plugins: [
+          // Remove console.log in production
+          ['transform-remove-console', { exclude: ['error', 'warn'] }]
+        ]
+      }
+    }
   };
 };
