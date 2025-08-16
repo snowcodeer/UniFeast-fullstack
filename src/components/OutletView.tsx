@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { Image as ExpoImage } from "expo-image";
 import type { Restaurant } from "../services/FoodDatabaseService";
-import type { UserProfile } from "../services/ProfileService";
+import type { UserProfile, FavouriteItem } from "../services/ProfileService";
 import { foodDatabaseService } from "../services/FoodDatabaseService";
+import { userService } from "../services/ProfileService";
 import outletBanners from "../assets/outletBanners";
 
 // Use Restaurant type as Outlet replacement  
@@ -22,6 +23,7 @@ const OutletView: React.FC<Props> = ({ outlet, onBack, userProfile }) => {
   const [foodItems, setFoodItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<string>("All");
+  const [favouriteMenuItems, setFavouriteMenuItems] = useState<Set<string>>(new Set());
 
   // Use banner_position from outlet data if available, otherwise fallback to hardcoded
   const getBannerPosition = () => {
@@ -49,6 +51,57 @@ const OutletView: React.FC<Props> = ({ outlet, onBack, userProfile }) => {
 
     fetchFoodItems();
   }, [outlet.id]);
+
+  useEffect(() => {
+    // Set favourite menu items from user profile
+    if (userProfile?.favourites) {
+      const favouriteMenuItemIds = userProfile.favourites
+        .filter(fav => fav.type === 'menu_item')
+        .map(fav => fav.id);
+      setFavouriteMenuItems(new Set(favouriteMenuItemIds));
+    }
+  }, [userProfile]);
+
+  const handleToggleMenuItemFavourite = async (item: any) => {
+    if (!userProfile) {
+      Alert.alert("Error", "Please sign in to save favourites");
+      return;
+    }
+
+    try {
+      const isCurrentlyFavourite = favouriteMenuItems.has(item.id);
+      
+      if (isCurrentlyFavourite) {
+        // Remove from favourites
+        const updatedProfile = await userService.removeFromFavourites(userProfile.user_id, item.id, 'menu_item');
+        if (updatedProfile) {
+          setFavouriteMenuItems(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(item.id);
+            return newSet;
+          });
+        }
+      } else {
+        // Add to favourites
+        const favouriteItem: Omit<FavouriteItem, 'added_at'> = {
+          id: item.id,
+          type: 'menu_item',
+          name: item.dish_name,
+          description: item.description,
+          restaurant_id: outlet.id,
+          restaurant_name: outlet.name,
+        };
+        
+        const updatedProfile = await userService.addToFavourites(userProfile.user_id, favouriteItem);
+        if (updatedProfile) {
+          setFavouriteMenuItems(prev => new Set([...prev, item.id]));
+        }
+      }
+    } catch (error) {
+      console.error('Error toggling menu item favourite:', error);
+      Alert.alert("Error", "Failed to update favourites");
+    }
+  };
 
   // Get unique categories from food items
   const categories = React.useMemo(() => {
@@ -214,7 +267,19 @@ const OutletView: React.FC<Props> = ({ outlet, onBack, userProfile }) => {
                   <Icon name={getItemIcon(item.category)} size={28} color="#ffffff" />
                 </View>
                 <View style={styles.foodInfo}>
-                  <Text style={styles.foodName}>{item.dish_name}</Text>
+                  <View style={styles.foodHeader}>
+                    <Text style={styles.foodName}>{item.dish_name}</Text>
+                    <TouchableOpacity 
+                      style={styles.menuItemFavouriteButton}
+                      onPress={() => handleToggleMenuItemFavourite(item)}
+                    >
+                      <Icon 
+                        name={favouriteMenuItems.has(item.id) ? "star" : "star-border"} 
+                        size={20} 
+                        color={favouriteMenuItems.has(item.id) ? "#FFD700" : "#666"} 
+                      />
+                    </TouchableOpacity>
+                  </View>
                   {item.description && (
                     <Text style={styles.foodDesc}>{item.description}</Text>
                   )}
@@ -228,11 +293,17 @@ const OutletView: React.FC<Props> = ({ outlet, onBack, userProfile }) => {
                     </View>
                   )}
                   <View style={styles.priceRow}>
-                    {item.student_price && (
-                      <Text style={styles.foodPrice}>Student: £{item.student_price}</Text>
+                    {userProfile?.user_identity === 'student' && item.student_price && (
+                      <Text style={styles.foodPrice}>£{item.student_price}</Text>
                     )}
-                    {item.staff_price && (
-                      <Text style={styles.foodPrice}>Staff: £{item.staff_price}</Text>
+                    {userProfile?.user_identity === 'staff' && item.staff_price && (
+                      <Text style={styles.foodPrice}>£{item.staff_price}</Text>
+                    )}
+                    {userProfile?.user_identity === 'visitor' && item.staff_price && (
+                      <Text style={styles.foodPrice}>£{item.staff_price}</Text>
+                    )}
+                    {!userProfile?.user_identity && item.student_price && (
+                      <Text style={styles.foodPrice}>£{item.student_price}</Text>
                     )}
                   </View>
                   {item.dietary_tags && item.dietary_tags.length > 0 && (
@@ -343,7 +414,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   foodInfo: { flex: 1 },
-  foodName: { fontSize: 16, fontWeight: '700', color: '#333', marginBottom: 4 },
+  foodHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 4,
+  },
+  foodName: { fontSize: 16, fontWeight: '700', color: '#333', flex: 1, marginRight: 8 },
+  menuItemFavouriteButton: {
+    padding: 4,
+  },
   foodDesc: { fontSize: 14, color: '#666', marginBottom: 4, lineHeight: 18 },
   allergenTagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 6 },
   allergenTag: { backgroundColor: '#FFF3E0', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 2 },

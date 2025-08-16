@@ -1,5 +1,5 @@
 // src/Profile.tsx
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { 
   View, 
   Text, 
@@ -12,9 +12,11 @@ import {
   Platform,
   Pressable,
   Image,
+  Animated,
 } from "react-native";
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuthenticator } from "@aws-amplify/ui-react-native";
-import { userService, UserProfile } from "./services/ProfileService";
+import { userService, UserProfile, FavouriteItem } from "./services/ProfileService";
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 const DIETARY_OPTIONS = [
@@ -53,12 +55,14 @@ const defaultProfile = {
   user_name: "",
   dietary_preferences: [] as string[],
   period_plan: "",
+  budget: "",
   milk_allergy: false,
   eggs_allergy: false,
   peanuts_allergy: false,
   tree_nuts_allergy: false,
   shellfish_allergy: false,
   other_allergies: [] as string[],
+  favourites: [] as any[],
 };
 
 // User ID now comes from authenticated user
@@ -112,14 +116,85 @@ function ProfileForm({
             placeholderTextColor="#6e6e73"
           />
 
-          <Text style={[styles.inputLabel, { marginTop: 16 }]}>Nutrition Plan</Text>
-          <TextInput
-            style={styles.textInput}
-            value={form.period_plan}
-            onChangeText={(text) => setForm(prev => ({ ...prev, period_plan: text }))}
-            placeholder="Enter nutrition plan"
-            placeholderTextColor="#6e6e73"
-          />
+          <Text style={[styles.inputLabel, { marginTop: 16 }]}>Identity</Text>
+          <View style={styles.identityButtonsContainer}>
+            <TouchableOpacity 
+              style={[
+                styles.identityButton, 
+                form.user_identity === 'student' && styles.identityButtonSelected
+              ]}
+              onPress={() => setForm(prev => ({ ...prev, user_identity: 'student' }))}
+            >
+              <Text style={[
+                styles.identityButtonText,
+                form.user_identity === 'student' && styles.identityButtonTextSelected
+              ]}>Student</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[
+                styles.identityButton, 
+                form.user_identity === 'staff' && styles.identityButtonSelected
+              ]}
+              onPress={() => setForm(prev => ({ ...prev, user_identity: 'staff' }))}
+            >
+              <Text style={[
+                styles.identityButtonText,
+                form.user_identity === 'staff' && styles.identityButtonTextSelected
+              ]}>Staff</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[
+                styles.identityButton, 
+                form.user_identity === 'visitor' && styles.identityButtonSelected
+              ]}
+              onPress={() => setForm(prev => ({ ...prev, user_identity: 'visitor' }))}
+            >
+              <Text style={[
+                styles.identityButtonText,
+                form.user_identity === 'visitor' && styles.identityButtonTextSelected
+              ]}>Visitor</Text>
+            </TouchableOpacity>
+          </View>
+
+          <Text style={[styles.inputLabel, { marginTop: 16 }]}>Budget</Text>
+          <View style={styles.budgetButtonsContainer}>
+            <TouchableOpacity 
+              style={[
+                styles.budgetButton, 
+                form.budget === '£' && styles.budgetButtonSelected
+              ]}
+              onPress={() => setForm(prev => ({ ...prev, budget: '£' }))}
+            >
+              <Text style={[
+                styles.budgetButtonText,
+                form.budget === '£' && styles.budgetButtonTextSelected
+              ]}>£</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[
+                styles.budgetButton, 
+                form.budget === '££' && styles.budgetButtonSelected
+              ]}
+              onPress={() => setForm(prev => ({ ...prev, budget: '££' }))}
+            >
+              <Text style={[
+                styles.budgetButtonText,
+                form.budget === '££' && styles.budgetButtonTextSelected
+              ]}>££</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[
+                styles.budgetButton, 
+                form.budget === '£££' && styles.budgetButtonSelected
+              ]}
+              onPress={() => setForm(prev => ({ ...prev, budget: '£££' }))}
+            >
+              <Text style={[
+                styles.budgetButtonText,
+                form.budget === '£££' && styles.budgetButtonTextSelected
+              ]}>£££</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -174,6 +249,22 @@ function ProfileForm({
         </View>
       </View>
 
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <MaterialIcons name="flag" size={24} color="#007AFF" />
+          <Text style={styles.sectionTitle}>Current Goal</Text>
+        </View>
+        <View style={styles.sectionContent}>
+          <TextInput
+            style={styles.textInput}
+            value={form.period_plan}
+            onChangeText={(text) => setForm(prev => ({ ...prev, period_plan: text }))}
+            placeholder="Type in your recent plans, whether you want to find a nearby restaurant..."
+            placeholderTextColor="#6e6e73"
+          />
+        </View>
+      </View>
+
       <View style={styles.buttonContainer}>
         <TouchableOpacity 
           style={styles.editButton}
@@ -203,12 +294,23 @@ const Profile = () => {
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showAccountDetails, setShowAccountDetails] = useState(false);
+  const animatedHeight = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (user) {
       fetchProfile();
     }
   }, [user]);
+
+  // Refresh profile when user navigates to this tab
+  useFocusEffect(
+    React.useCallback(() => {
+      if (user) {
+        fetchProfile();
+      }
+    }, [user])
+  );
 
   const fetchProfile = async () => {
     if (!user) return;
@@ -240,8 +342,10 @@ const Profile = () => {
 
     return {
       user_name: profile.user_name || "",
+      user_identity: profile.user_identity || "student",
       dietary_preferences: Array.isArray(profile.dietary_preferences) ? profile.dietary_preferences : [],
       period_plan: profile.period_plan || "",
+      budget: profile.budget || "",
       ...mainAllergens,
       ...extraAllergens,
     };
@@ -259,8 +363,10 @@ const Profile = () => {
       const profileData = {
         email: user.signInDetails?.loginId ?? "",
         user_name: form.user_name,
+        user_identity: form.user_identity,
         dietary_preferences: form.dietary_preferences,
-        nutrition_plan: form.nutrition_plan,
+        period_plan: form.period_plan,
+        budget: form.budget,
         milk_allergy: form.milk_allergy,
         eggs_allergy: form.eggs_allergy,
         peanuts_allergy: form.peanuts_allergy,
@@ -291,8 +397,10 @@ const Profile = () => {
 
       const updateData = {
         user_name: form.user_name,
+        user_identity: form.user_identity,
         dietary_preferences: form.dietary_preferences,
-        nutrition_plan: form.nutrition_plan,
+        period_plan: form.period_plan,
+        budget: form.budget,
         milk_allergy: form.milk_allergy,
         eggs_allergy: form.eggs_allergy,
         peanuts_allergy: form.peanuts_allergy,
@@ -310,6 +418,38 @@ const Profile = () => {
     } catch (err: any) {
       setError(err.message || "Failed to update profile");
       Alert.alert("Error", err.message || "Failed to update profile");
+    }
+  };
+
+  const handleBudgetSelect = async (budget: string) => {
+    if (!user || !profile) return;
+
+    try {
+      const updatedProfile = await userService.updateUser(user.userId, { budget });
+      if (updatedProfile) {
+        setProfile(updatedProfile);
+      }
+    } catch (error) {
+      console.error('Error updating budget:', error);
+      Alert.alert("Error", "Failed to update budget");
+    }
+  };
+
+  const handleUnfavourite = async (favourite: FavouriteItem) => {
+    if (!user || !profile) return;
+
+    try {
+      const updatedProfile = await userService.removeFromFavourites(
+        user.userId, 
+        favourite.id, 
+        favourite.type
+      );
+      if (updatedProfile) {
+        setProfile(updatedProfile);
+      }
+    } catch (error) {
+      console.error('Error removing favourite:', error);
+      Alert.alert("Error", "Failed to remove favourite");
     }
   };
 
@@ -371,21 +511,80 @@ const Profile = () => {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.avatarContainer}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {profile.user_name ? profile.user_name.charAt(0).toUpperCase() : "?"}
-            </Text>
+        <Text style={styles.headerTitle}>Profile</Text>
+        <TouchableOpacity style={styles.editIconButton} onPress={() => setEditing(true)}>
+          <MaterialIcons name="edit" size={20} color="#007AFF" />
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.userInfoCard}>
+        <View style={styles.userCardHeader}>
+          <View style={styles.avatarContainer}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>
+                {profile.user_name ? profile.user_name.charAt(0).toUpperCase() : "?"}
+              </Text>
+            </View>
+            <View style={styles.userInfoText}>
+              <Text style={styles.userName}>{profile.user_name || "Anonymous"}</Text>
+              <TouchableOpacity 
+                style={styles.accountDetailsButton} 
+                onPress={() => {
+                  console.log('Account Details pressed');
+                  const newState = !showAccountDetails;
+                  setShowAccountDetails(newState);
+                  
+                  Animated.timing(animatedHeight, {
+                    toValue: newState ? 1 : 0,
+                    duration: 300,
+                    useNativeDriver: false,
+                  }).start();
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.accountDetailsText}>Account Details</Text>
+                <MaterialIcons 
+                  name={showAccountDetails ? "expand-less" : "expand-more"} 
+                  size={16} 
+                  color="#6e6e73" 
+                />
+              </TouchableOpacity>
+            </View>
           </View>
-          <Text style={styles.userName}>{profile.user_name || "Anonymous"}</Text>
-          <Text style={styles.userEmail}>{profile.email || "No email"}</Text>
         </View>
+
+        {showAccountDetails && (
+          <Animated.View 
+            style={[
+              styles.expandedDetailsContainer,
+              {
+                maxHeight: animatedHeight.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 200],
+                }),
+                opacity: animatedHeight,
+              }
+            ]}
+          >
+            <View style={styles.accountDetailRow}>
+              <Text style={styles.accountDetailLabel}>Email</Text>
+              <Text style={styles.accountDetailValue}>{profile.email || "Not set"}</Text>
+            </View>
+            <View style={styles.accountDetailRow}>
+              <Text style={styles.accountDetailLabel}>Identity</Text>
+              <Text style={styles.accountDetailValue}>{(profile.user_identity || "Student").charAt(0).toUpperCase() + (profile.user_identity || "Student").slice(1).toLowerCase()}</Text>
+            </View>
+            <View style={styles.accountDetailRow}>
+              <Text style={styles.accountDetailLabel}>Budget</Text>
+              <Text style={styles.accountDetailValue}>{profile.budget || "Not set"}</Text>
+            </View>
+          </Animated.View>
+        )}
       </View>
 
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <MaterialIcons name="restaurant" size={24} color="#007AFF" />
-          <Text style={styles.sectionTitle}>Dietary Preferences</Text>
+          <Text style={styles.sectionTitle}>Dietary preferences</Text>
         </View>
         <View style={styles.sectionContent}>
           {Array.isArray(profile.dietary_preferences) && profile.dietary_preferences.length > 0 ? (
@@ -404,7 +603,6 @@ const Profile = () => {
 
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <MaterialIcons name="warning" size={24} color="#007AFF" />
           <Text style={styles.sectionTitle}>Allergies</Text>
         </View>
         <View style={styles.sectionContent}>
@@ -427,30 +625,80 @@ const Profile = () => {
               ]}
             </View>
           ) : (
-            <Text style={styles.emptyText}>No allergies specified</Text>
+            <Text style={styles.emptyText}>No allergies set</Text>
           )}
         </View>
       </View>
 
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <MaterialIcons name="calendar-today" size={24} color="#007AFF" />
-          <Text style={styles.sectionTitle}>Nutrition Plan</Text>
+          <Text style={styles.sectionTitle}>Favourites</Text>
         </View>
         <View style={styles.sectionContent}>
-          <Text style={styles.planText}>{profile.period_plan || "No plan selected"}</Text>
+          {Array.isArray(profile.favourites) && profile.favourites.length > 0 ? (
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.favouritesContainer}
+              style={styles.favouritesScrollView}
+            >
+              {profile.favourites.map((favourite) => (
+                <View key={`${favourite.type}-${favourite.id}`} style={styles.favouriteCard}>
+                  <View style={styles.favouriteIconContainer}>
+                    <MaterialIcons 
+                      name={favourite.type === 'restaurant' ? 'restaurant' : 'restaurant-menu'} 
+                      size={20} 
+                      color="#007AFF" 
+                    />
+                  </View>
+                  <Text style={styles.favouriteName} numberOfLines={2}>
+                    {favourite.name}
+                  </Text>
+                  {favourite.restaurant_name && favourite.type === 'menu_item' && (
+                    <Text style={styles.favouriteRestaurant} numberOfLines={1}>
+                      {favourite.restaurant_name}
+                    </Text>
+                  )}
+                  <Text style={styles.favouriteType}>
+                    {favourite.type === 'restaurant' ? 'Restaurant' : 'Menu Item'}
+                  </Text>
+                  <TouchableOpacity 
+                    style={styles.favouriteRemoveButton}
+                    onPress={() => handleUnfavourite(favourite)}
+                  >
+                    <MaterialIcons 
+                      name="star" 
+                      size={16} 
+                      color="#FFD700" 
+                    />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
+          ) : (
+            <Text style={styles.emptyText}>No favourites yet. Star restaurants and menu items to add them here!</Text>
+          )}
         </View>
       </View>
 
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity 
-          style={styles.editButton} 
-          onPress={() => setEditing(true)}
-        >
-          <MaterialIcons name="edit" size={20} color="white" />
-          <Text style={styles.editButtonText}>Edit Profile</Text>
-        </TouchableOpacity>
 
+
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Current goal</Text>
+        </View>
+        <View style={styles.sectionContent}>
+          <View style={styles.goalField}>
+            <Text style={styles.goalText}>{profile.period_plan || "No goal set"}</Text>
+          </View>
+        </View>
+      </View>
+
+
+
+
+
+      <View style={styles.buttonContainer}>
         <TouchableOpacity 
           style={styles.signOutButton} 
           onPress={handleSignOut}
@@ -461,6 +709,44 @@ const Profile = () => {
       </View>
     </ScrollView>
   );
+
+  // Account Details Modal
+  if (showAccountDetails) {
+    return (
+      <View style={styles.modalContainer}>
+        <View style={styles.modalHeader}>
+          <TouchableOpacity 
+            onPress={() => {
+              console.log('Back button pressed');
+              setShowAccountDetails(false);
+            }}
+            activeOpacity={0.7}
+          >
+            <MaterialIcons name="arrow-back" size={24} color="#007AFF" />
+          </TouchableOpacity>
+          <Text style={styles.modalTitle}>Account Details</Text>
+          <View style={{ width: 24 }} />
+        </View>
+        
+        <View style={styles.modalContent}>
+          <View style={styles.accountDetailRow}>
+            <Text style={styles.accountDetailLabel}>Full Name</Text>
+            <Text style={styles.accountDetailValue}>{profile?.user_name || "Not set"}</Text>
+          </View>
+          
+          <View style={styles.accountDetailRow}>
+            <Text style={styles.accountDetailLabel}>Email Address</Text>
+            <Text style={styles.accountDetailValue}>{profile?.email || "Not set"}</Text>
+          </View>
+          
+          <View style={styles.accountDetailRow}>
+            <Text style={styles.accountDetailLabel}>Identity / Role</Text>
+            <Text style={styles.accountDetailValue}>{profile?.user_identity || "Not set"}</Text>
+          </View>
+        </View>
+      </View>
+    );
+  }
 };
 
 const styles = StyleSheet.create({
@@ -555,8 +841,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
   },
   allergenLabel: {
     fontSize: 16,
@@ -564,27 +848,84 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "white",
   },
   header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     backgroundColor: "white",
-    paddingTop: 32,
-    paddingBottom: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
-    marginBottom: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+    paddingHorizontal: 24,
+    marginBottom: 12,
   },
-  avatarContainer: {
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#1c1c1e",
+  },
+
+  userInfoCard: {
+    backgroundColor: "white",
+    borderRadius: 12,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 18,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  userCardHeader: {
+    flexDirection: "row",
     alignItems: "center",
   },
+  avatarContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  userInfoText: {
+    marginLeft: 24,
+    flex: 1,
+    marginRight: 0,
+  },
+  userCardActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  accountDetailsText: {
+    fontSize: 14,
+    color: "#6e6e73",
+    marginTop: 2,
+  },
+  accountDetailsButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 2,
+    paddingVertical: 4,
+    paddingHorizontal: 0,
+    borderRadius: 6,
+  },
+  editIconButton: {
+    padding: 0,
+    alignSelf: "center",
+  },
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: "#007AFF",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 12,
   },
   avatarText: {
     fontSize: 32,
@@ -592,10 +933,15 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   userName: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: "600",
     color: "#1c1c1e",
-    marginBottom: 4,
+  },
+  userIdentity: {
+    fontSize: 14,
+    color: "#007AFF",
+    fontWeight: "500",
+    marginTop: 2,
   },
   userEmail: {
     fontSize: 16,
@@ -622,7 +968,7 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 8,
   },
   sectionTitle: {
     fontSize: 18,
@@ -631,7 +977,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   sectionContent: {
-    marginTop: 8,
+    marginTop: 4,
   },
   tagContainer: {
     flexDirection: "row",
@@ -695,6 +1041,169 @@ const styles = StyleSheet.create({
     color: "#FF3B30",
     fontSize: 16,
     fontWeight: "600",
+  },
+  favouritesContainer: {
+    paddingHorizontal: 4,
+  },
+  favouritesScrollView: {
+    marginHorizontal: -16,
+  },
+  favouriteCard: {
+    width: 140,
+    backgroundColor: "#f8f9fa",
+    borderRadius: 12,
+    padding: 12,
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: "#e9ecef",
+  },
+  favouriteIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#e3f2fd",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  favouriteName: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1c1c1e",
+    marginBottom: 4,
+  },
+  favouriteRestaurant: {
+    fontSize: 12,
+    color: "#6e6e73",
+    marginBottom: 4,
+  },
+  favouriteType: {
+    fontSize: 11,
+    color: "#007AFF",
+    fontWeight: "500",
+  },
+  favouriteRemoveButton: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    padding: 4,
+  },
+  budgetButtonsContainer: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  budgetButton: {
+    flex: 1,
+    backgroundColor: "#f8f9fa",
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#e9ecef",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  budgetButtonSelected: {
+    backgroundColor: "#007AFF",
+    borderColor: "#007AFF",
+  },
+  budgetButtonText: {
+    fontSize: 16,
+    color: "#6e6e73",
+    fontWeight: "600",
+  },
+  budgetButtonTextSelected: {
+    color: "white",
+  },
+  identityButtonsContainer: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  identityButton: {
+    flex: 1,
+    backgroundColor: "#f8f9fa",
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#e9ecef",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  identityButtonSelected: {
+    backgroundColor: "#007AFF",
+    borderColor: "#007AFF",
+  },
+  identityButtonText: {
+    fontSize: 16,
+    color: "#6e6e73",
+    fontWeight: "600",
+  },
+  identityButtonTextSelected: {
+    color: "white",
+  },
+  budgetField: {
+    backgroundColor: "#f8f9fa",
+    borderRadius: 8,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: "#e9ecef",
+  },
+  budgetText: {
+    fontSize: 16,
+    color: "#1c1c1e",
+  },
+  goalField: {
+    backgroundColor: "#f8f9fa",
+    borderRadius: 8,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: "#e9ecef",
+  },
+  goalText: {
+    fontSize: 16,
+    color: "#1c1c1e",
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "white",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingTop: 32,
+    paddingBottom: 16,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#1c1c1e",
+  },
+  modalContent: {
+    padding: 16,
+  },
+  accountDetailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+  accountDetailLabel: {
+    fontSize: 16,
+    color: "#6e6e73",
+  },
+  accountDetailValue: {
+    fontSize: 16,
+    color: "#1c1c1e",
+    fontWeight: "500",
+  },
+  expandedDetailsContainer: {
+    backgroundColor: "white",
+    borderRadius: 8,
+    marginTop: 12,
+    padding: 12,
   },
 });
 

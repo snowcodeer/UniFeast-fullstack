@@ -10,15 +10,27 @@ export interface UserProfile {
   user_identity?: string;
   dietary_preferences?: string[];
   period_plan?: string;
+  budget?: string;
   milk_allergy?: boolean;
   eggs_allergy?: boolean;
   peanuts_allergy?: boolean;
   tree_nuts_allergy?: boolean;
   shellfish_allergy?: boolean;
   other_allergies?: string[]; 
+  favourites?: FavouriteItem[];
   session_data?: string;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface FavouriteItem {
+  id: string;
+  type: 'restaurant' | 'menu_item';
+  name: string;
+  description?: string;
+  restaurant_id?: string;
+  restaurant_name?: string;
+  added_at: string;
 }
 
 class SimpleUserService {
@@ -83,12 +95,14 @@ class SimpleUserService {
         user_identity: 'student',
         dietary_preferences: [],
         period_plan: '',
+        budget: '',
         milk_allergy: false,
         eggs_allergy: false,
         peanuts_allergy: false,
         tree_nuts_allergy: false,
         shellfish_allergy: false,
         other_allergies: [],
+        favourites: [],
         session_data: '',
         created_at: timestamp,
         updated_at: timestamp,
@@ -167,6 +181,57 @@ class SimpleUserService {
       return true;
     } catch (error) {
       console.error('Error deleting user:', error);
+      return false;
+    }
+  }
+
+  async addToFavourites(userId: string, item: Omit<FavouriteItem, 'added_at'>): Promise<UserProfile | null> {
+    try {
+      const user = await this.getUser(userId);
+      if (!user) return null;
+
+      const newFavourite: FavouriteItem = {
+        ...item,
+        added_at: new Date().toISOString(),
+      };
+
+      const currentFavourites = user.favourites || [];
+      const updatedFavourites = [...currentFavourites, newFavourite];
+
+      return await this.updateUser(userId, { favourites: updatedFavourites });
+    } catch (error) {
+      console.error('Error adding to favourites:', error);
+      return null;
+    }
+  }
+
+  async removeFromFavourites(userId: string, itemId: string, itemType: 'restaurant' | 'menu_item'): Promise<UserProfile | null> {
+    try {
+      const user = await this.getUser(userId);
+      if (!user) return null;
+
+      const currentFavourites = user.favourites || [];
+      const updatedFavourites = currentFavourites.filter(
+        item => !(item.id === itemId && item.type === itemType)
+      );
+
+      return await this.updateUser(userId, { favourites: updatedFavourites });
+    } catch (error) {
+      console.error('Error removing from favourites:', error);
+      return null;
+    }
+  }
+
+  async isFavourite(userId: string, itemId: string, itemType: 'restaurant' | 'menu_item'): Promise<boolean> {
+    try {
+      const user = await this.getUser(userId);
+      if (!user || !user.favourites) return false;
+
+      return user.favourites.some(
+        item => item.id === itemId && item.type === itemType
+      );
+    } catch (error) {
+      console.error('Error checking favourite status:', error);
       return false;
     }
   }

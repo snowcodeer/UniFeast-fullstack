@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, TextInput, Animated, Easing } from "react-native";
+import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, TextInput, Animated, Easing, Alert } from "react-native";
 import { Image as ExpoImage } from "expo-image";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { useAuthenticator } from "@aws-amplify/ui-react-native";
-import { userService, UserProfile } from "./services/ProfileService";
+import { userService, UserProfile, FavouriteItem } from "./services/ProfileService";
 import { restaurantService } from "./services/RestaurantService";
 import type { Restaurant } from "./services/FoodDatabaseService";
 import outletBanners from "./assets/outletBanners";
@@ -19,11 +19,20 @@ const formatTag = (tag: string): string =>
     .map(w => (w.length > 0 ? w[0].toUpperCase() + w.slice(1) : w))
     .join(' ');
 
-const OutletCard = ({ outlet, isOpen, bannerPosition, onPress }: { 
+const OutletCard = ({ 
+  outlet, 
+  isOpen, 
+  bannerPosition, 
+  onPress, 
+  isFavourite, 
+  onToggleFavourite 
+}: { 
   outlet: Outlet; 
   isOpen: boolean; 
   bannerPosition?: string;
-  onPress: () => void 
+  onPress: () => void;
+  isFavourite: boolean;
+  onToggleFavourite: () => void;
 }) => {
   return (
     <TouchableOpacity style={styles.card} onPress={onPress}>
@@ -41,6 +50,19 @@ const OutletCard = ({ outlet, isOpen, bannerPosition, onPress }: {
             <Text style={styles.cardBannerPlaceholderText}>{outlet.name}</Text>
           </View>
         )}
+        <TouchableOpacity 
+          style={styles.favouriteButton} 
+          onPress={(e) => {
+            e.stopPropagation();
+            onToggleFavourite();
+          }}
+        >
+          <Icon 
+            name={isFavourite ? "star" : "star-border"} 
+            size={24} 
+            color={isFavourite ? "#FFD700" : "white"} 
+          />
+        </TouchableOpacity>
       </View>
       <View style={styles.cardContent}>
         <Text style={styles.restaurantName} numberOfLines={2}>{outlet.name}</Text>
@@ -53,7 +75,7 @@ const OutletCard = ({ outlet, isOpen, bannerPosition, onPress }: {
         </View>
         
         <View style={styles.tags}>
-                        <Text style={[styles.tag, isOpen ? styles.tagOpen : styles.tagClosed]}>{isOpen ? 'Open' : 'Closed'}</Text>
+          <Text style={[styles.tag, isOpen ? styles.tagOpen : styles.tagClosed]}>{isOpen ? 'Open' : 'Closed'}</Text>
           <Text style={styles.tag}>{formatCategoryLabel(outlet.category)}</Text>
           {outlet.tags?.slice(0, 2).map((t) => (
             <Text key={t} style={styles.tag}>{formatTag(t)}</Text>
@@ -76,6 +98,7 @@ const Home = () => {
   const [outlets, setOutlets] = useState<Outlet[]>([]);
   const [bannerPositions, setBannerPositions] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [favouriteOutlets, setFavouriteOutlets] = useState<Set<string>>(new Set());
 
   const openSearch = () => {
     setIsSearchOpen(true);
@@ -105,6 +128,14 @@ const Home = () => {
       try {
         const profile = await userService.getUser(user.userId);
         setUserProfile(profile);
+        
+        // Set favourite outlets
+        if (profile?.favourites) {
+          const favouriteRestaurantIds = profile.favourites
+            .filter(fav => fav.type === 'restaurant')
+            .map(fav => fav.id);
+          setFavouriteOutlets(new Set(favouriteRestaurantIds));
+        }
       } catch (error) {
         console.log("Could not fetch profile for personalized recommendations");
       }
@@ -141,6 +172,47 @@ const Home = () => {
   const handleOutletPress = (outlet: Outlet) => {
     setSelectedOutlet(outlet);
     console.log("Open outlet:", outlet.name);
+  };
+
+  const handleToggleFavourite = async (outlet: Outlet) => {
+    if (!user) {
+      Alert.alert("Error", "Please sign in to save favourites");
+      return;
+    }
+
+    try {
+      const isCurrentlyFavourite = favouriteOutlets.has(outlet.id);
+      
+      if (isCurrentlyFavourite) {
+        // Remove from favourites
+        const updatedProfile = await userService.removeFromFavourites(user.userId, outlet.id, 'restaurant');
+        if (updatedProfile) {
+          setUserProfile(updatedProfile);
+          setFavouriteOutlets(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(outlet.id);
+            return newSet;
+          });
+        }
+      } else {
+        // Add to favourites
+        const favouriteItem: Omit<FavouriteItem, 'added_at'> = {
+          id: outlet.id,
+          type: 'restaurant',
+          name: outlet.name,
+          description: outlet.description,
+        };
+        
+        const updatedProfile = await userService.addToFavourites(user.userId, favouriteItem);
+        if (updatedProfile) {
+          setUserProfile(updatedProfile);
+          setFavouriteOutlets(prev => new Set([...prev, outlet.id]));
+        }
+      }
+    } catch (error) {
+      console.error('Error toggling favourite:', error);
+      Alert.alert("Error", "Failed to update favourites");
+    }
   };
 
   const selectCategory = (category: Outlet["category"]) => {
@@ -287,6 +359,8 @@ const Home = () => {
             isOpen={isNowOpen(outlet)}
             bannerPosition={bannerPositions[outlet.id]}
             onPress={() => handleOutletPress(outlet)}
+            isFavourite={favouriteOutlets.has(outlet.id)}
+            onToggleFavourite={() => handleToggleFavourite(outlet)}
           />
         ))
       )}
@@ -437,6 +511,17 @@ const styles = StyleSheet.create({
     color: "#0a3ea1",
     fontWeight: "800",
     fontSize: 20,
+  },
+  favouriteButton: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   cardContent: {
