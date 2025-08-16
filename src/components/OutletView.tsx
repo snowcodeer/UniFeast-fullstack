@@ -200,11 +200,11 @@ const OutletView: React.FC<Props> = ({ outlet, onBack, userProfile }) => {
 
         <View style={styles.card}>
           <Text style={styles.title}>{outlet.name}</Text>
-          <View style={styles.metaRow}>
-            <View style={styles.locationRow}>
-              <Icon name="location-on" size={18} color="#d32f2f" style={{ marginTop: 1 }} />
-              <Text style={styles.locationText}>{outlet.buildingOrArea || outlet.campus}</Text>
-            </View>
+          <View style={styles.locationRow}>
+            <Icon name="location-on" size={18} color="#d32f2f" style={{ marginTop: 1 }} />
+            <Text style={styles.locationText}>{outlet.buildingOrArea || outlet.campus}</Text>
+          </View>
+          <View style={styles.tagsRow}>
             <Text style={styles.tag}>{formatCategoryLabel(outlet.category)}</Text>
           </View>
           <Text style={styles.description}>{outlet.description}</Text>
@@ -376,9 +376,9 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   title: { fontSize: 24, fontWeight: "bold", color: "#333", marginBottom: 8 },
-  metaRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
-  locationRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  locationRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 },
   locationText: { fontSize: 14, color: "#666" },
+  tagsRow: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
   tag: { fontSize: 12, color: "#666", backgroundColor: "#f0f0f0", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
   description: { fontSize: 16, color: "#555", lineHeight: 22 },
   sectionTitle: { fontSize: 20, fontWeight: "bold", color: "#333", marginBottom: 12 },
