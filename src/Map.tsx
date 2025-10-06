@@ -5,6 +5,8 @@ import { Image as ExpoImage } from "expo-image";
 import * as Location from 'expo-location';
 import { useNavigation, useRoute, useFocusEffect } from "@react-navigation/native";
 import outletBanners from "./assets/outletBanners";
+import { restaurantService } from "./services/RestaurantService";
+import type { Restaurant } from "./services/FoodDatabaseService";
 
 const Map = () => {
   const mapRef = useRef<MapView>(null);
@@ -14,6 +16,8 @@ const Map = () => {
   const [showRestaurantModal, setShowRestaurantModal] = useState(false);
   const [selectedGroupRestaurants, setSelectedGroupRestaurants] = useState<Array<{id: string, name: string}>>([]);
   const [showClosedLocations, setShowClosedLocations] = useState(false);
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const navigation = useNavigation();
   const route = useRoute();
 
@@ -33,16 +37,83 @@ const Map = () => {
     })();
   }, []);
 
+  // Helper functions from Home component
+  const isTimeRangeOpen = (timeRange: string): boolean => {
+    // Accept formats like "08:00–16:00" or "08:00-16:00"
+    if (!/\d/.test(timeRange)) return false;
+    const normalized = timeRange.replace(/\s/g, "");
+    const parts = normalized.split(/–|-/);
+    if (parts.length !== 2) return false;
+    const [start, end] = parts;
+    const toMinutes = (t: string): number => {
+      const match = t.match(/^(\d{1,2}):(\d{2})$/);
+      if (!match) return NaN;
+      const hh = parseInt(match[1], 10);
+      const mm = parseInt(match[2], 10);
+      return hh * 60 + mm;
+    };
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const startMin = toMinutes(start);
+    const endMin = toMinutes(end);
+    if (Number.isNaN(startMin) || Number.isNaN(endMin)) return false;
+    // Handle typical same-day ranges only
+    return nowMinutes >= startMin && nowMinutes <= endMin;
+  };
+
+  const isTodayInDays = (days: string): boolean => {
+    const dayMap = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const today = dayMap[new Date().getDay()];
+    const d = days.replace(/\s/g, "");
+    if (/Mon–Sun|Mon-Sun/i.test(d)) return true;
+    // Single day, e.g., "Sat" or "Sun"
+    if (dayMap.some(k => d === k)) return d === today;
+    // Ranges like "Mon–Fri", "Thu–Fri"
+    const match = d.match(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)[–-](Mon|Tue|Wed|Thu|Fri|Sat|Sun)$/);
+    if (!match) return false;
+    const startIdx = dayMap.indexOf(match[1]);
+    const endIdx = dayMap.indexOf(match[2]);
+    const todayIdx = dayMap.indexOf(today);
+    if (startIdx <= endIdx) {
+      return todayIdx >= startIdx && todayIdx <= endIdx;
+    }
+    // Wrap-around (unlikely in our data, but safe)
+    return todayIdx >= startIdx || todayIdx <= endIdx;
+  };
+
+  // Function to check if a restaurant is currently open (from Home component)
+  const isNowOpen = (restaurant: Restaurant): boolean => {
+    if (!restaurant.openingHours || restaurant.openingHours.length === 0) return false;
+    return restaurant.openingHours.some(entry => isTodayInDays(entry.days) && isTimeRangeOpen(entry.time));
+  };
+
+  // Fetch restaurants from database
+  useEffect(() => {
+    const fetchRestaurants = async () => {
+      try {
+        setIsLoading(true);
+        const restaurantsData = await restaurantService.getSouthKensingtonOutlets();
+        setRestaurants(restaurantsData);
+      } catch (error) {
+        console.error('Error fetching restaurants:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchRestaurants();
+  }, []);
+
   // Handle navigation from Home tab with restaurant selection
   useFocusEffect(
     React.useCallback(() => {
       const params = route.params as { restaurantId?: string; selectedLocation?: string } | undefined;
       
-      if (params?.restaurantId && campusLocations.length > 0) {
+      if (params?.restaurantId && filteredLocations.length > 0) {
         console.log('Looking for restaurant on map:', params.restaurantId);
         
         // Find the location that matches the restaurant ID
-        const matchingLocation = campusLocations.find(location => {
+        const matchingLocation = filteredLocations.find(location => {
           // Check if the location's restaurantId matches
           if (location.restaurantId === params.restaurantId) {
             return true;
@@ -136,7 +207,7 @@ const Map = () => {
       id: 'jcr_group',
       title: 'JCR Dining',
       description: 'Kimiko, La Cantina, Feast, Hǎo Chí, The Bakery, JCR Deli',
-      coordinate: { latitude: 51.49859, longitude: -0.17735 },
+      coordinate: { latitude: 51.49862, longitude: -0.17735 },
       pinColor: '#9C27B0', // Purple for grouped location
       restaurantId: 'kimiko', // Default to first restaurant
     },
@@ -146,7 +217,7 @@ const Map = () => {
       id: 'scr_group',
       title: 'SCR Dining',
       description: 'SCR Restaurant, The Roastery',
-      coordinate: { latitude: 51.49858, longitude: -0.17745 },
+      coordinate: { latitude: 51.49861, longitude: -0.17745 },
       pinColor: '#9C27B0', // Purple for grouped location
       restaurantId: 'scr_restaurant',
     },
@@ -156,7 +227,7 @@ const Map = () => {
       id: 'blackett_cafe',
       title: 'Blackett Café',
       description: 'Cafe in Blackett building',
-      coordinate: { latitude: 51.49975, longitude: -0.1785 },
+      coordinate: { latitude: 51.4994, longitude: -0.1791 },
       pinColor: '#8B4513',
       restaurantId: 'blackett_cafe',
     },
@@ -204,7 +275,7 @@ const Map = () => {
       id: 'huxley_cafe',
       title: 'Huxley Café',
       description: 'Cafe in Huxley building',
-      coordinate: { latitude: 51.49975, longitude: -0.1783 },
+      coordinate: { latitude: 51.4991, longitude: -0.1793 },
       pinColor: '#8B4513',
       restaurantId: 'huxley_café',
     },
@@ -220,7 +291,7 @@ const Map = () => {
       id: 'pizza_pi',
       title: 'Pizza Pi',
       description: 'Neo Pizza & Pasta',
-      coordinate: { latitude: 51.4986, longitude: -0.17726 },
+      coordinate: { latitude: 51.49863, longitude: -0.17726 },
       pinColor: '#FFA726',
       restaurantId: 'pizza_pi_(neo_pizza_&_pasta)',
     },
@@ -228,7 +299,7 @@ const Map = () => {
       id: 'queens_tower',
       title: "Queen's Tower Rooms",
       description: 'Event and dining space',
-      coordinate: { latitude: 51.4990, longitude: -0.1750 },
+      coordinate: { latitude: 51.49858, longitude: -0.1777 },
       pinColor: '#795548',
       restaurantId: "queen's_tower_rooms",
     },
@@ -260,38 +331,14 @@ const Map = () => {
       id: 'pantry',
       title: 'The Pantry',
       description: 'Grab and go food',
-      coordinate: { latitude: 51.49861, longitude: -0.17717 },
+      coordinate: { latitude: 51.49864, longitude: -0.17717 },
       pinColor: '#8B4513',
       restaurantId: 'the_pantry',
-    },
-    // Closed locations (sample)
-    {
-      id: 'closed_cafe_1',
-      title: 'Temporarily Closed Café',
-      description: 'Closed for renovation',
-      coordinate: { latitude: 51.4992, longitude: -0.1765 },
-      pinColor: '#9E9E9E', // Gray for closed
-      restaurantId: 'closed_cafe_1',
-      isClosed: true,
-    },
-    {
-      id: 'closed_restaurant_1',
-      title: 'Summer Break Restaurant',
-      description: 'Closed during summer',
-      coordinate: { latitude: 51.4995, longitude: -0.1760 },
-      pinColor: '#9E9E9E', // Gray for closed
-      restaurantId: 'closed_restaurant_1',
-      isClosed: true,
     },
   ];
 
   // Function to get pin color based on venue type
   const getPinColor = (location: any) => {
-    // If location is closed, return gray
-    if (location.isClosed) {
-      return '#9E9E9E'; // Gray for closed locations
-    }
-    
     const title = location.title.toLowerCase();
     const description = location.description.toLowerCase();
     
@@ -319,8 +366,25 @@ const Map = () => {
     return '#FFA726'; // Orange for other venues
   };
 
+  // Enhance campusLocations with real restaurant data for open/closed status
+  const enhancedCampusLocations = campusLocations.map(location => {
+    const restaurant = restaurants.find(r => r.id === location.restaurantId);
+    const isOpen = restaurant ? isNowOpen(restaurant) : true; // Default to open if not found
+    
+    return {
+      ...location,
+      isClosed: !isOpen,
+      restaurant: restaurant,
+      pinColor: getPinColor({ 
+        title: location.title, 
+        description: location.description, 
+        isClosed: !isOpen 
+      })
+    };
+  });
+
   // Filter locations based on closed toggle
-  const filteredLocations = campusLocations.filter(location => {
+  const filteredLocations = enhancedCampusLocations.filter(location => {
     if (location.isClosed) {
       return showClosedLocations;
     }
@@ -390,7 +454,7 @@ const Map = () => {
       >
         {/* Campus location markers */}
         {filteredLocations.map((location) => (
-          <Marker
+        <Marker
             key={location.id}
             ref={(ref) => {
               if (ref) {
@@ -474,6 +538,8 @@ const Map = () => {
           <Text style={styles.buttonText}>Fly to Campus</Text>
         </TouchableOpacity>
         
+        <View style={styles.buttonGap} />
+        
         <TouchableOpacity 
           style={[styles.button, showClosedLocations && styles.buttonActive]} 
           onPress={() => setShowClosedLocations(!showClosedLocations)}
@@ -482,6 +548,35 @@ const Map = () => {
             {showClosedLocations ? 'Hide Closed' : 'Show Closed'}
           </Text>
         </TouchableOpacity>
+      </View>
+
+      {/* Pin Color Legend */}
+      <View style={styles.legendContainer}>
+        <Text style={styles.legendTitle}>Legend</Text>
+        <View style={styles.legendRow}>
+          <View style={[styles.legendPin, { backgroundColor: '#8B4513' }]} />
+          <Text style={styles.legendText}>Cafés</Text>
+        </View>
+        <View style={styles.legendRow}>
+          <View style={[styles.legendPin, { backgroundColor: '#E91E63' }]} />
+          <Text style={styles.legendText}>Bars</Text>
+        </View>
+        <View style={styles.legendRow}>
+          <View style={[styles.legendPin, { backgroundColor: '#FF6B6B' }]} />
+          <Text style={styles.legendText}>Restaurants</Text>
+        </View>
+        <View style={styles.legendRow}>
+          <View style={[styles.legendPin, { backgroundColor: '#607D8B' }]} />
+          <Text style={styles.legendText}>Stores</Text>
+        </View>
+        <View style={styles.legendRow}>
+          <View style={[styles.legendPin, { backgroundColor: '#9C27B0' }]} />
+          <Text style={styles.legendText}>Mixed Dining</Text>
+        </View>
+        <View style={styles.legendRow}>
+          <View style={[styles.legendPin, { backgroundColor: '#FFA726' }]} />
+          <Text style={styles.legendText}>Other</Text>
+        </View>
       </View>
       
       {/* Restaurant Selection Modal */}
@@ -513,7 +608,7 @@ const Map = () => {
               <Text style={styles.modalCancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>
-        </View>
+      </View>
       </Modal>
     </View>
   );
@@ -558,6 +653,47 @@ const styles = StyleSheet.create({
   },
   buttonActive: {
     backgroundColor: '#4CAF50',
+  },
+  buttonGap: {
+    width: 10,
+  },
+  legendContainer: {
+    position: 'absolute',
+    top: 80,
+    right: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 8,
+    padding: 12,
+    minWidth: 120,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  legendTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#333',
+  },
+  legendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  legendPin: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 8,
+  },
+  legendText: {
+    fontSize: 12,
+    color: '#333',
   },
   callout: {
     width: 240,

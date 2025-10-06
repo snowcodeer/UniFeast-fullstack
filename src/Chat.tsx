@@ -93,7 +93,6 @@ const Chat = () => {
   const initializeChat = async () => {
     try {
       setIsLoading(true);
-      console.log('Initializing chat with AI...');
       
       // Fetch user profile and create profile message
       let profileMessage = "Hello";
@@ -117,7 +116,6 @@ const Chat = () => {
             const allergiesText = allergies.length > 0 ? allergies.join(', ') : 'None';
             
             profileMessage = `Hello. My dietary preferences are: ${dietaryPrefs}. My allergies are: ${allergiesText}.`;
-            console.log('User profile message:', profileMessage);
           }
         } catch (profileError) {
           console.log('Could not fetch user profile:', profileError);
@@ -146,7 +144,7 @@ const Chat = () => {
       // Fallback welcome message if initialization fails
       const fallbackMessage: Message = {
         id: "fallback",
-        text: "Hi! I'm your AI assistant for UniFeast. I can help you find restaurants, answer questions about campus dining, and provide recommendations based on your preferences. How can I help you today?",
+        text: "Hi! I'm your UniFeast Chatbot. I can help you find restaurants, answer questions about campus dining, and provide recommendations based on your preferences. How can I help you today?",
         isUser: false,
         timestamp: new Date(),
       };
@@ -690,7 +688,7 @@ const Chat = () => {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>AI Assistant</Text>
+        <Text style={styles.headerTitle}>UniFeast Chatbot</Text>
         <View style={styles.headerSubtitle}>
           <Icon name="smart-toy" size={16} color="#007AFF" />
           <Text style={styles.headerSubtitleText}>Campus Dining Helper</Text>
@@ -750,21 +748,12 @@ const Chat = () => {
             {/* Render food cards for AI messages - outside the message bubble */}
             {!message.isUser && message.foodCards && message.foodCards.length > 0 && (
               <View style={styles.foodCardsContainer}>
-                <Text style={styles.foodCardsHeader}>
-                  🍽️ Food Recommendations ({message.foodCards.length})
-                </Text>
                 {message.foodCards.map((card, index) => (
                   <FoodCard key={index} card={card} />
                 ))}
               </View>
             )}
             
-            {/* Debug info - remove this in production */}
-            {!message.isUser && __DEV__ && (
-              <Text style={styles.debugText}>
-                Debug: {message.foodCards?.length || 0} food cards
-              </Text>
-            )}
           </View>
         ))}
         
@@ -980,12 +969,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#007AFF",
     marginBottom: 8,
-  },
-  debugText: {
-    fontSize: 10,
-    color: "#999",
-    fontStyle: "italic",
-    marginTop: 4,
   },
   foodCard: {
     backgroundColor: "white",
