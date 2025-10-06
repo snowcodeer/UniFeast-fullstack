@@ -3,6 +3,7 @@ import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, TextInput,
 import { Image as ExpoImage } from "expo-image";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { useAuthenticator } from "@aws-amplify/ui-react-native";
+import { useFocusEffect, useRoute, useNavigation } from "@react-navigation/native";
 import { userService, UserProfile, FavouriteItem } from "./services/ProfileService";
 import { restaurantService } from "./services/RestaurantService";
 import type { Restaurant } from "./services/FoodDatabaseService";
@@ -25,7 +26,8 @@ const OutletCard = ({
   bannerPosition, 
   onPress, 
   isFavourite, 
-  onToggleFavourite 
+  onToggleFavourite,
+  navigation
 }: { 
   outlet: Outlet; 
   isOpen: boolean; 
@@ -33,6 +35,7 @@ const OutletCard = ({
   onPress: () => void;
   isFavourite: boolean;
   onToggleFavourite: () => void;
+  navigation: any;
 }) => {
   return (
     <TouchableOpacity style={styles.card} onPress={onPress}>
@@ -68,10 +71,21 @@ const OutletCard = ({
         <Text style={styles.restaurantName} numberOfLines={2}>{outlet.name}</Text>
         
         <View style={styles.infoRow}>
-          <View style={styles.locationRow}>
+          <TouchableOpacity 
+            style={styles.locationRow}
+            onPress={() => {
+              console.log('Navigating to map for location:', outlet.buildingOrArea || outlet.campus);
+              (navigation as any).navigate('Map', { 
+                selectedLocation: outlet.buildingOrArea || outlet.campus,
+                restaurantId: outlet.id 
+              });
+            }}
+            activeOpacity={0.7}
+          >
             <Icon name="location-on" size={16} color="#d32f2f" style={styles.locationIcon} />
             <Text style={styles.location}>{outlet.buildingOrArea || outlet.campus}</Text>
-          </View>
+            <Icon name="navigate-next" size={16} color="#d32f2f" style={styles.locationArrow} />
+          </TouchableOpacity>
         </View>
         
         <View style={styles.tags}>
@@ -88,9 +102,12 @@ const OutletCard = ({
 
 const Home = () => {
   const { user } = useAuthenticator();
+  const route = useRoute();
+  const navigation = useNavigation();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [selectedOutlet, setSelectedOutlet] = useState<Outlet | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<Outlet["category"] | null>(null);
+  const [fromMap, setFromMap] = useState<boolean>(false);
   const [nowOpenOnly, setNowOpenOnly] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
@@ -122,26 +139,84 @@ const Home = () => {
     });
   };
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      if (!user) return;
-      try {
-        const profile = await userService.getUser(user.userId);
-        setUserProfile(profile);
-        
-        // Set favourite outlets
-        if (profile?.favourites) {
-          const favouriteRestaurantIds = profile.favourites
-            .filter(fav => fav.type === 'restaurant')
-            .map(fav => fav.id);
-          setFavouriteOutlets(new Set(favouriteRestaurantIds));
-        }
-      } catch (error) {
-        console.log("Could not fetch profile for personalized recommendations");
+  // Function to refresh user profile and favourites
+  const refreshProfile = async () => {
+    if (!user) return;
+    try {
+      const profile = await userService.getUser(user.userId);
+      setUserProfile(profile);
+      
+      // Set favourite outlets
+      if (profile?.favourites) {
+        const favouriteRestaurantIds = profile.favourites
+          .filter(fav => fav.type === 'restaurant')
+          .map(fav => fav.id);
+        setFavouriteOutlets(new Set(favouriteRestaurantIds));
+      } else {
+        setFavouriteOutlets(new Set());
       }
-    };
-    fetchProfile();
+    } catch (error) {
+      console.log("Could not fetch profile for personalized recommendations");
+    }
+  };
+
+  useEffect(() => {
+    refreshProfile();
   }, [user]);
+
+  // Refresh favourites when Home tab is focused (e.g., when returning from Profile tab)
+  useFocusEffect(
+    React.useCallback(() => {
+      refreshProfile();
+    }, [user])
+  );
+
+  // Handle navigation from map
+  useEffect(() => {
+    const params = route.params as { restaurantId?: string; fromMap?: boolean } | undefined;
+    console.log('Navigation params:', params);
+    console.log('Available outlets:', outlets.map(o => ({ id: o.id, name: o.name })));
+    
+    if (params?.restaurantId && outlets.length > 0) {
+      console.log('Looking for restaurant ID:', params.restaurantId);
+      setFromMap(params.fromMap || false); // Store the fromMap parameter
+      
+      const outlet = outlets.find(o => o.id === params.restaurantId);
+      console.log('Found outlet:', outlet);
+      
+      if (outlet) {
+        console.log('Setting selected outlet:', outlet.name);
+        setSelectedOutlet(outlet);
+        // Clear the params after navigation to prevent re-triggering
+        navigation.setParams({ restaurantId: undefined, fromMap: undefined });
+      } else {
+        console.log('No outlet found with ID:', params.restaurantId);
+        // Try to find by partial match
+        const partialMatch = outlets.find(o => 
+          o.id.toLowerCase().includes(params.restaurantId.toLowerCase()) ||
+          o.name.toLowerCase().includes(params.restaurantId.toLowerCase())
+        );
+        if (partialMatch) {
+          console.log('Found partial match:', partialMatch);
+          setSelectedOutlet(partialMatch);
+          navigation.setParams({ restaurantId: undefined, fromMap: undefined });
+        }
+      }
+    }
+  }, [route.params, outlets, navigation]);
+
+  // Clear selected outlet when Home tab is focused without restaurant parameters
+  useFocusEffect(
+    React.useCallback(() => {
+      const params = route.params as { restaurantId?: string; fromMap?: boolean } | undefined;
+      
+      // If no restaurant ID in params and we have a selected outlet, clear it
+      if (!params?.restaurantId && selectedOutlet) {
+        console.log('Clearing selected outlet to show main home page');
+        setSelectedOutlet(null);
+      }
+    }, [route.params, selectedOutlet])
+  );
 
   useEffect(() => {
     const fetchOutlets = async () => {
@@ -286,11 +361,19 @@ const Home = () => {
     if (nowOpenOnly && !isNowOpen(o)) return false;
     if (!matchesQuery(o)) return false;
     return true;
+  }).sort((a, b) => {
+    // Move favorite outlets to the top
+    const aIsFavourite = favouriteOutlets.has(a.id);
+    const bIsFavourite = favouriteOutlets.has(b.id);
+    
+    if (aIsFavourite && !bIsFavourite) return -1;
+    if (!aIsFavourite && bIsFavourite) return 1;
+    return 0; // Keep original order for non-favourites
   });
 
   // If an outlet is selected, show its details
   if (selectedOutlet) {
-    return <OutletView outlet={selectedOutlet} userProfile={userProfile} onBack={() => setSelectedOutlet(null)} />;
+    return <OutletView outlet={selectedOutlet} userProfile={userProfile} onBack={() => setSelectedOutlet(null)} fromMap={fromMap} />;
   }
 
   return (
@@ -361,6 +444,7 @@ const Home = () => {
             onPress={() => handleOutletPress(outlet)}
             isFavourite={favouriteOutlets.has(outlet.id)}
             onToggleFavourite={() => handleToggleFavourite(outlet)}
+            navigation={navigation}
           />
         ))
       )}
@@ -571,6 +655,9 @@ const styles = StyleSheet.create({
   location: {
     fontSize: 12,
     color: "#666",
+  },
+  locationArrow: {
+    marginLeft: 2,
   },
   tags: {
     flexDirection: "row",

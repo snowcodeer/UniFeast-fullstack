@@ -709,44 +709,6 @@ const Profile = () => {
       </View>
     </ScrollView>
   );
-
-  // Account Details Modal
-  if (showAccountDetails) {
-    return (
-      <View style={styles.modalContainer}>
-        <View style={styles.modalHeader}>
-          <TouchableOpacity 
-            onPress={() => {
-              console.log('Back button pressed');
-              setShowAccountDetails(false);
-            }}
-            activeOpacity={0.7}
-          >
-            <MaterialIcons name="arrow-back" size={24} color="#007AFF" />
-          </TouchableOpacity>
-          <Text style={styles.modalTitle}>Account Details</Text>
-          <View style={{ width: 24 }} />
-        </View>
-        
-        <View style={styles.modalContent}>
-          <View style={styles.accountDetailRow}>
-            <Text style={styles.accountDetailLabel}>Full Name</Text>
-            <Text style={styles.accountDetailValue}>{profile?.user_name || "Not set"}</Text>
-          </View>
-          
-          <View style={styles.accountDetailRow}>
-            <Text style={styles.accountDetailLabel}>Email Address</Text>
-            <Text style={styles.accountDetailValue}>{profile?.email || "Not set"}</Text>
-          </View>
-          
-          <View style={styles.accountDetailRow}>
-            <Text style={styles.accountDetailLabel}>Identity / Role</Text>
-            <Text style={styles.accountDetailValue}>{profile?.user_identity || "Not set"}</Text>
-          </View>
-        </View>
-      </View>
-    );
-  }
 };
 
 const styles = StyleSheet.create({

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { Image as ExpoImage } from "expo-image";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { Restaurant } from "../services/FoodDatabaseService";
 import type { UserProfile, FavouriteItem } from "../services/ProfileService";
 import { foodDatabaseService } from "../services/FoodDatabaseService";
@@ -17,13 +18,27 @@ type Props = {
   outlet: Outlet;
   onBack: () => void;
   userProfile?: UserProfile | null;
+  initialCategory?: string | null;
+  fromMap?: boolean;
 };
 
-const OutletView: React.FC<Props> = ({ outlet, onBack, userProfile }) => {
+const OutletView: React.FC<Props> = ({ outlet, onBack, userProfile, initialCategory, fromMap = false }) => {
   const [foodItems, setFoodItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState<string>("All");
+  const [activeFilter, setActiveFilter] = useState<string>(initialCategory || "All");
   const [favouriteMenuItems, setFavouriteMenuItems] = useState<Set<string>>(new Set());
+  const navigation = useNavigation();
+
+  // Smart back navigation - return to map if user came from map
+  const handleBackPress = () => {
+    if (fromMap) {
+      // Navigate back to Map tab
+      (navigation as any).navigate('Map');
+    } else {
+      // Use the original onBack handler
+      onBack();
+    }
+  };
 
   // Use banner_position from outlet data if available, otherwise fallback to hardcoded
   const getBannerPosition = () => {
@@ -52,15 +67,35 @@ const OutletView: React.FC<Props> = ({ outlet, onBack, userProfile }) => {
     fetchFoodItems();
   }, [outlet.id]);
 
-  useEffect(() => {
-    // Set favourite menu items from user profile
+  // Function to refresh favourite menu items
+  const refreshFavouriteMenuItems = () => {
     if (userProfile?.favourites) {
       const favouriteMenuItemIds = userProfile.favourites
         .filter(fav => fav.type === 'menu_item')
         .map(fav => fav.id);
       setFavouriteMenuItems(new Set(favouriteMenuItemIds));
+    } else {
+      setFavouriteMenuItems(new Set());
     }
+  };
+
+  useEffect(() => {
+    refreshFavouriteMenuItems();
   }, [userProfile]);
+
+  // Refresh favourites when component is focused (e.g., when returning from Profile tab)
+  useFocusEffect(
+    React.useCallback(() => {
+      refreshFavouriteMenuItems();
+    }, [userProfile])
+  );
+
+  // Update active filter when initialCategory changes
+  useEffect(() => {
+    if (initialCategory) {
+      setActiveFilter(initialCategory);
+    }
+  }, [initialCategory]);
 
   const handleToggleMenuItemFavourite = async (item: any) => {
     if (!userProfile) {
@@ -114,9 +149,21 @@ const OutletView: React.FC<Props> = ({ outlet, onBack, userProfile }) => {
   };
 
   const filteredFoodItems = React.useMemo(() => {
-    if (activeFilter === "All") return foodItems;
-    return foodItems.filter(item => item.category === activeFilter);
-  }, [foodItems, activeFilter]);
+    let filtered = foodItems;
+    if (activeFilter !== "All") {
+      filtered = foodItems.filter(item => item.category === activeFilter);
+    }
+    
+    // Sort to move favorite menu items to the top
+    return filtered.sort((a, b) => {
+      const aIsFavourite = favouriteMenuItems.has(a.id);
+      const bIsFavourite = favouriteMenuItems.has(b.id);
+      
+      if (aIsFavourite && !bIsFavourite) return -1;
+      if (!aIsFavourite && bIsFavourite) return 1;
+      return 0; // Keep original order for non-favourites
+    });
+  }, [foodItems, activeFilter, favouriteMenuItems]);
 
   const getItemIcon = (category: string): string => {
     switch (category?.toLowerCase()) {
@@ -193,17 +240,28 @@ const OutletView: React.FC<Props> = ({ outlet, onBack, userProfile }) => {
               <Text style={styles.bannerPlaceholderText}>{outlet.name}</Text>
             </View>
           )}
-          <TouchableOpacity style={styles.backFab} onPress={onBack}>
+          <TouchableOpacity style={styles.backFab} onPress={handleBackPress}>
             <Icon name="arrow-back" size={22} color="#333" />
           </TouchableOpacity>
         </View>
 
         <View style={styles.card}>
           <Text style={styles.title}>{outlet.name}</Text>
-          <View style={styles.locationRow}>
+          <TouchableOpacity 
+            style={styles.locationRow}
+            onPress={() => {
+              console.log('Navigating to map for location:', outlet.buildingOrArea || outlet.campus);
+              (navigation as any).navigate('Map', { 
+                selectedLocation: outlet.buildingOrArea || outlet.campus,
+                restaurantId: outlet.id 
+              });
+            }}
+            activeOpacity={0.7}
+          >
             <Icon name="location-on" size={18} color="#d32f2f" style={{ marginTop: 1 }} />
             <Text style={styles.locationText}>{outlet.buildingOrArea || outlet.campus}</Text>
-          </View>
+            <Icon name="navigate-next" size={18} color="#d32f2f" style={styles.locationArrow} />
+          </TouchableOpacity>
           <View style={styles.tagsRow}>
             <Text style={styles.tag}>{formatCategoryLabel(outlet.category)}</Text>
           </View>
@@ -377,7 +435,8 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 24, fontWeight: "bold", color: "#333", marginBottom: 8 },
   locationRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 },
-  locationText: { fontSize: 14, color: "#666" },
+  locationText: { fontSize: 14, color: "#666", flex: 1 },
+  locationArrow: { marginLeft: 2 },
   tagsRow: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
   tag: { fontSize: 12, color: "#666", backgroundColor: "#f0f0f0", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
   description: { fontSize: 16, color: "#555", lineHeight: 22 },

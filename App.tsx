@@ -15,6 +15,7 @@ import {
 import Profile from "./src/Profile";
 import Home from "./src/Home";
 import Map from "./src/Map";
+import Chat from "./src/Chat";
 
 Amplify.configure({
   "auth": {
@@ -62,6 +63,7 @@ const TabScreens = () => (
           const iconMap: Record<string, string> = {
             Home: "restaurant-menu",
             Map: "map",
+            Chat: "chat",
             Profile: "person",
           };
           const name = iconMap[route.name] ?? "circle";
@@ -71,6 +73,7 @@ const TabScreens = () => (
     >
       <Tab.Screen name="Home" component={Home} />
       <Tab.Screen name="Map" component={Map} />
+      <Tab.Screen name="Chat" component={Chat} />
       <Tab.Screen name="Profile" component={ProfileWithHeader} />
     </Tab.Navigator>
   </SafeAreaView>
