@@ -39,7 +39,8 @@ Then edit the `.env` file with your actual configuration values:
 ### 3. Running the Application
 
 ```bash
-# Start the development server
-npx expo run:ios
-
+# Run on iOS simulator
+npm run ios
 ```
+
+Note: This project does not work with Expo. It uses AWS Amplify for user authentication and the AWS SDK for other services like Aurora database connections.
