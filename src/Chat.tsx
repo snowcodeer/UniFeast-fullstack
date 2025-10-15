@@ -94,35 +94,8 @@ const Chat = () => {
     try {
       setIsLoading(true);
       
-      // Fetch user profile and create profile message
-      let profileMessage = "Hello";
-      if (user?.userId) {
-        try {
-          const profile = await userService.getUser(user.userId);
-          if (profile) {
-            // Create a plain text profile message
-            const dietaryPrefs = profile.dietary_preferences?.join(', ') || 'None specified';
-            const allergies = [];
-            
-            if (profile.milk_allergy) allergies.push('milk');
-            if (profile.eggs_allergy) allergies.push('eggs');
-            if (profile.peanuts_allergy) allergies.push('peanuts');
-            if (profile.tree_nuts_allergy) allergies.push('tree nuts');
-            if (profile.shellfish_allergy) allergies.push('shellfish');
-            if (profile.other_allergies?.length) {
-              allergies.push(...profile.other_allergies);
-            }
-            
-            const allergiesText = allergies.length > 0 ? allergies.join(', ') : 'None';
-            
-            profileMessage = `Hello. My dietary preferences are: ${dietaryPrefs}. My allergies are: ${allergiesText}.`;
-          }
-        } catch (profileError) {
-          console.log('Could not fetch user profile:', profileError);
-        }
-      }
-      
-      const aiResponse = await generateAIResponse(profileMessage);
+      // Send simple "hello" message to initialize the chatbot
+      const aiResponse = await generateAIResponse("hello");
       
       console.log('Initialization AI Response:', {
         text_bubble: aiResponse.text_bubble,
@@ -359,7 +332,10 @@ const Chat = () => {
     setIsLoading(true);
 
     try {
-      const aiResponse = await generateAIResponse(userMessage.text);
+      // Include profile data with every message
+      const messageWithProfile = await createMessageWithProfile(userMessage.text);
+      
+      const aiResponse = await generateAIResponse(messageWithProfile);
       
       console.log('AI Response received:', {
         text_bubble: aiResponse.text_bubble,
@@ -382,6 +358,39 @@ const Chat = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const createMessageWithProfile = async (userMessage: string): Promise<string> => {
+    if (!user?.userId) {
+      return userMessage;
+    }
+
+    try {
+      const profile = await userService.getUser(user.userId);
+      if (profile) {
+        // Create a plain text profile message
+        const dietaryPrefs = profile.dietary_preferences?.join(', ') || 'None specified';
+        const allergies = [];
+        
+        if (profile.milk_allergy) allergies.push('milk');
+        if (profile.eggs_allergy) allergies.push('eggs');
+        if (profile.peanuts_allergy) allergies.push('peanuts');
+        if (profile.tree_nuts_allergy) allergies.push('tree nuts');
+        if (profile.shellfish_allergy) allergies.push('shellfish');
+        if (profile.other_allergies?.length) {
+          allergies.push(...profile.other_allergies);
+        }
+        
+        const allergiesText = allergies.length > 0 ? allergies.join(', ') : 'None';
+        
+        // Combine user message with profile data
+        return `${userMessage}. My dietary preferences are: ${dietaryPrefs}. My allergies are: ${allergiesText}.`;
+      }
+    } catch (profileError) {
+      console.log('Could not fetch user profile:', profileError);
+    }
+    
+    return userMessage;
   };
 
   const formatTime = (date: Date) => {
@@ -641,7 +650,7 @@ const Chat = () => {
     );
   };
 
-  const handleSuggestionPress = (suggestion: string) => {
+  const handleSuggestionPress = async (suggestion: string) => {
     setInputText(suggestion);
     // Auto-send the suggestion by creating a message directly
     const userMessage: Message = {
@@ -655,8 +664,13 @@ const Chat = () => {
     setInputText("");
     setIsLoading(true);
 
-    // Generate AI response for the suggestion
-    generateAIResponse(suggestion).then(aiResponse => {
+    try {
+      // Include profile data with every message
+      const messageWithProfile = await createMessageWithProfile(suggestion);
+      
+      // Generate AI response for the suggestion
+      const aiResponse = await generateAIResponse(messageWithProfile);
+      
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         text: aiResponse.text_bubble,
@@ -666,12 +680,12 @@ const Chat = () => {
       };
 
       setMessages(prev => [...prev, aiMessage]);
-      setIsLoading(false);
-    }).catch(error => {
+    } catch (error) {
       console.error("Error generating AI response:", error);
       Alert.alert("Error", "Failed to get AI response. Please try again.");
+    } finally {
       setIsLoading(false);
-    });
+    }
   };
 
   // If a restaurant is selected, show its details (same as Home component)

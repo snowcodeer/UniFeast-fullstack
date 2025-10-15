@@ -205,18 +205,6 @@ const Home = () => {
     }
   }, [route.params, outlets, navigation]);
 
-  // Clear selected outlet when Home tab is focused without restaurant parameters
-  useFocusEffect(
-    React.useCallback(() => {
-      const params = route.params as { restaurantId?: string; fromMap?: boolean } | undefined;
-      
-      // If no restaurant ID in params and we have a selected outlet, clear it
-      if (!params?.restaurantId && selectedOutlet) {
-        console.log('Clearing selected outlet to show main home page');
-        setSelectedOutlet(null);
-      }
-    }, [route.params, selectedOutlet])
-  );
 
   useEffect(() => {
     const fetchOutlets = async () => {

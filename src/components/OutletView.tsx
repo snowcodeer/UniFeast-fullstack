@@ -29,15 +29,11 @@ const OutletView: React.FC<Props> = ({ outlet, onBack, userProfile, initialCateg
   const [favouriteMenuItems, setFavouriteMenuItems] = useState<Set<string>>(new Set());
   const navigation = useNavigation();
 
-  // Smart back navigation - return to map if user came from map
+  // Back navigation - always use onBack handler to clear selection
   const handleBackPress = () => {
-    if (fromMap) {
-      // Navigate back to Map tab
-      (navigation as any).navigate('Map');
-    } else {
-      // Use the original onBack handler
-      onBack();
-    }
+    // Always use the onBack handler to clear the selected outlet
+    // This will return to the Home screen regardless of where we came from
+    onBack();
   };
 
   // Use banner_position from outlet data if available, otherwise fallback to hardcoded
